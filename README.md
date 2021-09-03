@@ -13,4 +13,4 @@ The newer |MMJR2| builds can be found at the new repository [here](https://githu
 
 This fork wouldn't be possible without the crazy amount of work that developers much more skilled than us put into Dolphin.
 
-Join the MMJR community at our [Discord](https://discord.gg/WYcywwV49Z).
+Join the MMJR community at our [Discord](https://discord.gg/S3bNPd5hDy).
