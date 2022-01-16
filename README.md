@@ -1,6 +1,7 @@
 Discord = https://discord.gg/NZTQRpy5B3
 
 ANNOUNCEMENT (For new users):
+
 .=============================
 I officially announce that I will be stopping any further development on BOTH projects and calling it quits to focus on University. Sorry to everyone that held in here for further development on |MMJR2| and for possible fixes down the line for |MMJR| .... but it really is too much for me to handle right now.
 
@@ -8,4 +9,5 @@ Both versions are on github and I encourage determined or curious people to use 
 As for whether I will come back and tackle this project again ... I have no clue;  I might still try to work on it little by little over time but as it stands I'm officially too tied down with IRL stuff to handle the projects anymore.
 
 So special thanks to @Lynx  for his godly help and contributions and the testers; especially @Gamer 64  for his assistance over the recent months. As well as to @Jos  for the great updates, knowledge and development over at Dolphin Official (https://dolphin-emu.org/download/). Thanks to everyone for supporting the app, development and my endeavors in learning coding from scratch. 
+
 .=================================
