@@ -3,6 +3,7 @@ Discord = https://discord.gg/NZTQRpy5B3
 ANNOUNCEMENT (For new users):
 
 .=============================
+
 I officially announce that I will be stopping any further development on BOTH projects and calling it quits to focus on University. Sorry to everyone that held in here for further development on |MMJR2| and for possible fixes down the line for |MMJR| .... but it really is too much for me to handle right now.
 
 Both versions are on github and I encourage determined or curious people to use the source code. However at the rate that Dolphin Official is going, down the line you might not need |MMJR| or definitely not |MMJR2| anymore. I might have time to push any PR's over to Dolphin Official from |MMJR2| for QOL stuff like the theme changer or maybe the quick menu but like I said everything is on github and free to access so anyone can do it if in case I can't. 
