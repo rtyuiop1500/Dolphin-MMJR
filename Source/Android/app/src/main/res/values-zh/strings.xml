@@ -3,7 +3,7 @@
 
     <!-- Title of the app -->
     <string name="app_name">Dolphin |MMJR|</string>
-    <string name="app_name_version">Dolphin |MMJR| v11460</string>
+    <string name="app_name_version">Dolphin |MMJR| - 11465</string>
     <string name="host">app</string>
     <string name="scheme">dolphinemu</string>
 
@@ -186,6 +186,10 @@
     <string name="internal_resolution">内部分辨率</string>
     <string name="internal_resolution_description">高分辨率会提高视觉质量，但需要更强的性能，也可能会在某些游戏中造成毛刺。</string>
     <string name="FSAA">全屏抗锯齿</string>
+    <string name="load_hirestextures">Load Custom Textures</string>
+    <string name="load_hirestextures_description">Put your texture pack folder inside (dolphin-mmjr /Load /Textures)</string>
+    <string name="cache_hirestextures">Prefetch Custom Textures</string>
+    <string name="cache_hirestextures_description">Preload Custom Textures into RAM</string>
     <string name="FSAA_description">减少光栅化3D图形导致的混叠数量，使渲染的图片看起来不模糊，但会降低速度，有时会出现问题。</string>
     <string name="anisotropic_filtering">各向异性过滤</string>
     <string name="anisotropic_filtering_description">增强处于倾斜视角的纹理的视觉质量，但是在少数游戏中可能会出现问题。</string>
@@ -390,5 +394,8 @@
     <string name="pitch">上下倾斜</string>
     <string name="yaw">左右摇摆</string>
     <string name="vertical_offset">垂直偏移</string>
+    <string name="advanced_submenu2">高级设置</string>
+    <string name="HiresTextures_submenu">Custom Hires-Textures</string>
+    <string name="More_Enhancements_submenu">More Enhancement Settings</string>
 
 </resources>

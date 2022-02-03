@@ -3,7 +3,7 @@
 
     <!-- Title of the app -->
     <string name="app_name">Dolphin |MMJR|</string>
-    <string name="app_name_version">Dolphin |MMJR| v11460</string>
+    <string name="app_name_version">Dolphin |MMJR| - 11465</string>
     <string name="host">app</string>
     <string name="scheme">dolphinemu</string>
 
@@ -186,6 +186,10 @@
     <string name="internal_resolution">Internal Resolution</string>
     <string name="internal_resolution_description">A high resolution will improve visual quality a lot but is also quite heavy on performance and might cause glitches in certain games.</string>
     <string name="FSAA">Full-scene Anti-aliasing</string>
+    <string name="load_hirestextures">Load Custom Textures</string>
+    <string name="load_hirestextures_description">Put your texture pack folder inside the Textures folder. Example: (dolphin-mmjr/Load/Textures/GZ2E01)</string>
+    <string name="cache_hirestextures">Prefetch Custom Textures</string>
+    <string name="cache_hirestextures_description">Preload Custom Textures into RAM</string>
     <string name="FSAA_description">Reduces the amount of aliasing caused by rasterizing 3D graphics. Heavily decreases emulation speed and sometimes causes issues.</string>
     <string name="anisotropic_filtering">Anisotropic Filtering</string>
     <string name="anisotropic_filtering_description">Enhances visual quality of textures that are at oblique viewing angles. Might cause issues in a small number of games.</string>
@@ -390,5 +394,8 @@
     <string name="pitch">Total Pitch</string>
     <string name="yaw">Total Yaw</string>
     <string name="vertical_offset">Vertical Offset</string>
+    <string name="advanced_submenu2">Advanced Settings</string>
+    <string name="HiresTextures_submenu">Custom Hires-Textures</string>
+    <string name="More_Enhancements_submenu">More Enhancement Settings</string>
 
 </resources>

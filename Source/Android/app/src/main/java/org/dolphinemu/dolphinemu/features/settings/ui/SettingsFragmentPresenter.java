@@ -208,6 +208,7 @@ public final class SettingsFragmentPresenter
       overclock));
     sl.add(new SliderSetting(SettingsFile.KEY_SPEED_LIMIT, Settings.SECTION_INI_CORE,
       R.string.speed_limit, 0, 200, "%", 100, speedLimit));
+		sl.add(new HeaderSetting(null, null,R.string.advanced_submenu2, 0));
     sl.add(new CheckBoxSetting(SettingsFile.KEY_SYNC_ON_SKIP_IDLE, Settings.SECTION_INI_CORE,
       R.string.sync_on_skip_idle, R.string.sync_on_skip_idle_description, true,
       syncOnSkipIdle));
@@ -411,6 +412,8 @@ public final class SettingsFragmentPresenter
     Setting fsaa = gfxSection.getSetting(SettingsFile.KEY_FSAA);
     Setting anisotropic = enhancementSection.getSetting(SettingsFile.KEY_ANISOTROPY);
     Setting shader = enhancementSection.getSetting(SettingsFile.KEY_POST_SHADER);
+    Setting HiresTextures = gfxSection.getSetting(SettingsFile.KEY_HIRESTEXTURES);
+		Setting CacheHiresTextures = gfxSection.getSetting(SettingsFile.KEY_CACHE_HIRESTEXTURES);
     Setting efbScaledCopy = hacksSection.getSetting(SettingsFile.KEY_SCALED_EFB);
     Setting perPixel = gfxSection.getSetting(SettingsFile.KEY_PER_PIXEL);
     Setting forceFilter = enhancementSection.getSetting(SettingsFile.KEY_FORCE_FILTERING);
@@ -424,6 +427,12 @@ public final class SettingsFragmentPresenter
     sl.add(new SingleChoiceSetting(SettingsFile.KEY_INTERNAL_RES, Settings.SECTION_GFX_SETTINGS,
       R.string.internal_resolution, R.string.internal_resolution_description,
       R.array.internalResolutionEntries, R.array.internalResolutionValues, 100, resolution));
+		sl.add(new HeaderSetting(null, null,R.string.HiresTextures_submenu, 0));
+		sl.add(new CheckBoxSetting(SettingsFile.KEY_HIRESTEXTURES, Settings.SECTION_GFX_SETTINGS,
+			R.string.load_hirestextures, R.string.load_hirestextures_description, false, HiresTextures));
+		sl.add(new CheckBoxSetting(SettingsFile.KEY_CACHE_HIRESTEXTURES, Settings.SECTION_GFX_SETTINGS,
+			R.string.cache_hirestextures, R.string.cache_hirestextures_description, false, CacheHiresTextures));
+		sl.add(new HeaderSetting(null, null,R.string.More_Enhancements_submenu, 0));
     sl.add(new SingleChoiceSetting(SettingsFile.KEY_FSAA, Settings.SECTION_GFX_SETTINGS,
       R.string.FSAA, R.string.FSAA_description, R.array.FSAAEntries, R.array.FSAAValues, 1,
       fsaa));

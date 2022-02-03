@@ -61,7 +61,7 @@ android {
     externalNativeBuild {
         cmake {
             path "../../../CMakeLists.txt"
-            version "3.10.2"
+            version "3.18.1"
         }
     }
 
@@ -90,7 +90,7 @@ dependencies {
 }
 
 def getVersion() {
-    def versionNumber = '11460'
+    def versionNumber = '11465'
 
     try {
         versionNumber = 'git describe --always --long'.execute([], project.rootDir).text
@@ -100,7 +100,7 @@ def getVersion() {
         logger.error('Cannot find git, defaulting to dummy version number')
     }
 
-    return versionNumber + "11460 - bankaimaster999"
+    return "11465 - bankaimaster999"
 }
 
 

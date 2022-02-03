@@ -77,6 +77,8 @@ public final class SettingsFile
   public static final String KEY_WIDE_SCREEN_HACK = "wideScreenHack";
   public static final String KEY_FORCE_24_BIT_COLOR = "ForceTrueColor";
   public static final String KEY_BACKEND_MULTITHREADING = "BackendMultithreading";
+  public static final String KEY_HIRESTEXTURES = "HiresTextures";
+	public static final String KEY_CACHE_HIRESTEXTURES = "CacheHiresTextures";
 
   public static final String KEY_SKIP_EFB = "EFBAccessEnable";
   public static final String KEY_IGNORE_FORMAT = "EFBEmulateFormatChanges";
