@@ -90,7 +90,7 @@ dependencies {
 }
 
 def getVersion() {
-    def versionNumber = '11465'
+    def versionNumber = '11470'
 
     try {
         versionNumber = 'git describe --always --long'.execute([], project.rootDir).text
@@ -100,7 +100,7 @@ def getVersion() {
         logger.error('Cannot find git, defaulting to dummy version number')
     }
 
-    return "11465 - bankaimaster999"
+    return "11470 - bankaimaster999"
 }
 
 
