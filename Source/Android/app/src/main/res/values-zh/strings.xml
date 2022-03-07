@@ -3,7 +3,7 @@
 
     <!-- Title of the app -->
     <string name="app_name">Dolphin |MMJR|</string>
-    <string name="app_name_version">Dolphin |MMJR| - 11480</string>
+    <string name="app_name_version">Dolphin |MMJR| - 11485</string>
     <string name="host">app</string>
     <string name="scheme">dolphinemu</string>
 
@@ -395,7 +395,7 @@
     <string name="yaw">左右摇摆</string>
     <string name="vertical_offset">垂直偏移</string>
     <string name="advanced_submenu2">高级设置</string>
-    <string name="HiresTextures_submenu">Custom Hires-Textures</string>
-    <string name="More_Enhancements_submenu">More Enhancement Settings</string>
+    <string name="hires_textures_submenu">Custom Hires-Textures</string>
+    <string name="more_enhancements_submenu">More Enhancement Settings</string>
 
 </resources>

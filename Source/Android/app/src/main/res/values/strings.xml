@@ -3,7 +3,7 @@
 
     <!-- Title of the app -->
     <string name="app_name">Dolphin |MMJR|</string>
-    <string name="app_name_version">Dolphin |MMJR| - 11480</string>
+    <string name="app_name_version">Dolphin |MMJR| - 11485</string>
     <string name="host">app</string>
     <string name="scheme">dolphinemu</string>
 
@@ -359,7 +359,7 @@
     <string name="delete_game_setting">Delete Settings</string>
     <string name="delete_game_file">Delete Game</string>
     <string name="clear_game_data">Clear Cache</string>
-    <string name="cheat_code">Cheat Code</string>
+    <string name="cheat_code">Cheat / Ini Editor</string>
     <string name="toast_save_code_ok">Code Saved!</string>
     <string name="toast_save_code_no">Save Failed!</string>
     <string name="touch_screen_pointer">Touch Screen emulate IR</string>
