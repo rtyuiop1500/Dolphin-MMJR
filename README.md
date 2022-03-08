@@ -1,14 +1,13 @@
 Discord = https://discord.gg/NZTQRpy5B3
 
-ANNOUNCEMENT (For new users):
+ANNOUNCEMENT:
 
 =============================
 
-I officially announce that I will be stopping any further development on BOTH projects and calling it quits to focus on University. Sorry to everyone that held in here for further development on |MMJR2| and for possible fixes down the line for |MMJR| .... but it really is too much for me to handle right now.
+I officially announce that I will be stopping any further development on |MMJR2| and leaving it in the hands of Lumince's version (To avoid confusion with the whole |MMJR2| new/old versions). So going forward if you still want to use |MMJR2|- please use Lumince version (https://github.com/Lumince/Dolphin-MMJR2/releases) as the defacto |MMJR2| going forward.
 
-Both versions are on github and I encourage determined or curious people to use the source code. However at the rate that Dolphin Official is going, down the line you might not need |MMJR| or definitely not |MMJR2| anymore. I might have time to push any PR's over to Dolphin Official from |MMJR2| for QOL stuff like the theme changer or maybe the quick menu but like I said everything is on github and free to access so anyone can do it if in case I can't. 
-As for whether I will come back and tackle this project again ... I have no clue;  I might still try to work on it little by little over time but as it stands I'm officially too tied down with IRL stuff to handle the projects anymore.
+Both versions of |MMJR| are on github and I encourage determined or curious people to use the source code. However at the rate that Dolphin Official is going, down the line you might not need them anymore. However, if you still want something outside the official version then these forks are always freely available as an option.
 
-So special thanks to @Lynx  for his godly help and contributions and the testers; especially @Gamer 64  for his assistance over the recent months. As well as to @Jos  for the great updates, knowledge and development over at Dolphin Official (https://dolphin-emu.org/download/). Thanks to everyone for supporting the app, development and my endeavors in learning coding from scratch. 
+So special thanks to @Lynx for his godly help and contributions, the testers and Gamer64ytb for further continuing work on MMJ/MMJR as both a tester and upcoming dev. Also many thanks to @Josjuice for the great updates, knowledge and development over at Dolphin Official (https://dolphin-emu.org/download/). Thanks to everyone for supporting the app and its development.
 
 =================================
