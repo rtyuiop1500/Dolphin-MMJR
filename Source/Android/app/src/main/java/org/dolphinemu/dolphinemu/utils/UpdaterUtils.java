@@ -24,7 +24,7 @@ import org.dolphinemu.dolphinemu.features.settings.model.Settings;
 public class UpdaterUtils
 {
   public static final String URL =
-          "https://api.github.com/repos/Gamer64ytb/dolphin/releases"; // for old release check.
+          "https://api.github.com/repos/Bankaimaster999/Dolphin-MMJR/releases"; // for old release check.
   public static final String LATEST = "/latest"; // for latest release check.
 
   public static void openUpdaterWindow(Context context, UpdaterData data)
@@ -206,6 +206,6 @@ public class UpdaterUtils
 
   public static VersionCode getBuildVersion()
   {
-    return VersionCode.create("5.0-15940"); // get version
+    return VersionCode.create("5.0-15950"); // get version
   }
 }
