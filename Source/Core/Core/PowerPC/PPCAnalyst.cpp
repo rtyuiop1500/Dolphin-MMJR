@@ -1,6 +1,5 @@
 // Copyright 2008 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/PowerPC/PPCAnalyst.h"
 
@@ -10,11 +9,12 @@
 #include <string>
 #include <vector>
 
+#include <fmt/format.h>
+
 #include "Common/Assert.h"
 #include "Common/CommonTypes.h"
 #include "Common/Logging/Log.h"
 #include "Common/StringUtil.h"
-#include "Core/Config/MainSettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/PowerPC/JitCommon/JitBase.h"
 #include "Core/PowerPC/MMU.h"
@@ -37,6 +37,9 @@
 
 namespace PPCAnalyst
 {
+// 0 does not perform block merging
+constexpr u32 BRANCH_FOLLOWING_THRESHOLD = 2;
+
 constexpr u32 INVALID_BRANCH_TARGET = 0xFFFFFFFF;
 
 static u32 EvaluateBranchTarget(UGeckoInstruction instr, u32 pc)
@@ -73,7 +76,7 @@ static u32 EvaluateBranchTarget(UGeckoInstruction instr, u32 pc)
 bool AnalyzeFunction(u32 startAddr, Common::Symbol& func, u32 max_size)
 {
   if (func.name.empty())
-    func.Rename(StringFromFormat("zz_%08x_", startAddr));
+    func.Rename(fmt::format("zz_{:08x}_", startAddr));
   if (func.analyzed)
     return true;  // No error, just already did it.
 
@@ -192,8 +195,8 @@ static bool CanSwapAdjacentOps(const CodeOp& a, const CodeOp& b)
 {
   const GekkoOPInfo* a_info = a.opinfo;
   const GekkoOPInfo* b_info = b.opinfo;
-  int a_flags = a_info->flags;
-  int b_flags = b_info->flags;
+  u64 a_flags = a_info->flags;
+  u64 b_flags = b_info->flags;
 
   // can't reorder around breakpoints
   if (SConfig::GetInstance().bEnableDebugging &&
@@ -209,8 +212,8 @@ static bool CanSwapAdjacentOps(const CodeOp& a, const CodeOp& b)
 
   switch (b.inst.OPCD)
   {
-  case 16:  // bcx
-  case 18:  // bx
+  case 16:
+  case 18:
   // branches. Do not swap.
   case 17:  // sc
   case 46:  // lmw
@@ -370,7 +373,7 @@ void FindFunctions(u32 startAddr, u32 endAddr, PPCSymbolDB* func_db)
   {
     if (func.second.address == 4)
     {
-      WARN_LOG(SYMBOLS, "Weird function");
+      WARN_LOG_FMT(SYMBOLS, "Weird function");
       continue;
     }
     AnalyzeFunction2(&(func.second));
@@ -420,12 +423,12 @@ void FindFunctions(u32 startAddr, u32 endAddr, PPCSymbolDB* func_db)
   else
     unniceSize /= numUnNice;
 
-  INFO_LOG(SYMBOLS,
-           "Functions analyzed. %i leafs, %i nice, %i unnice."
-           "%i timer, %i rfi. %i are branchless leafs.",
-           numLeafs, numNice, numUnNice, numTimer, numRFI, numStraightLeaf);
-  INFO_LOG(SYMBOLS, "Average size: %i (leaf), %i (nice), %i(unnice)", leafSize, niceSize,
-           unniceSize);
+  INFO_LOG_FMT(SYMBOLS,
+               "Functions analyzed. {} leafs, {} nice, {} unnice."
+               "{} timer, {} rfi. {} are branchless leafs.",
+               numLeafs, numNice, numUnNice, numTimer, numRFI, numStraightLeaf);
+  INFO_LOG_FMT(SYMBOLS, "Average size: {} (leaf), {} (nice), {}(unnice)", leafSize, niceSize,
+               unniceSize);
 }
 
 static bool isCmp(const CodeOp& a)
@@ -521,8 +524,12 @@ void PPCAnalyzer::SetInstructionStats(CodeBlock* block, CodeOp* code, const Gekk
   code->wantsCR0 = false;
   code->wantsCR1 = false;
 
+  bool first_fpu_instruction = false;
   if (opinfo->flags & FL_USE_FPU)
+  {
+    first_fpu_instruction = !block->m_fpa->any;
     block->m_fpa->any = true;
+  }
 
   if (opinfo->flags & FL_TIMER)
     block->m_gpa->anyTimer = true;
@@ -546,6 +553,11 @@ void PPCAnalyzer::SetInstructionStats(CodeBlock* block, CodeOp* code, const Gekk
   code->wantsFPRF = (opinfo->flags & FL_READ_FPRF) != 0;
   code->outputFPRF = (opinfo->flags & FL_SET_FPRF) != 0;
   code->canEndBlock = (opinfo->flags & FL_ENDBLOCK) != 0;
+
+  code->canCauseException =
+      first_fpu_instruction || (opinfo->flags & (FL_LOADSTORE | FL_PROGRAMEXCEPTION)) != 0 ||
+      (SConfig::GetInstance().bFloatExceptions && (opinfo->flags & FL_FLOAT_EXCEPTION)) ||
+      (SConfig::GetInstance().bDivideByZeroExceptions && (opinfo->flags & FL_FLOAT_DIV));
 
   code->wantsCA = (opinfo->flags & FL_READ_CA) != 0;
   code->outputCA = (opinfo->flags & FL_SET_CA) != 0;
@@ -693,7 +705,14 @@ bool PPCAnalyzer::IsBusyWaitLoop(CodeBlock* block, CodeOp* code, size_t instruct
       if (code[i].branchTo == block->m_address && i == instructions)
         return true;
     }
-    else if (code[i].opinfo->type == OpType::Integer || code[i].opinfo->type == OpType::Load)
+    else if (code[i].opinfo->type != OpType::Integer && code[i].opinfo->type != OpType::Load)
+    {
+      // In the future, some subsets of other instruction types might get
+      // supported. Right now, only try loops that have this very
+      // restricted instruction set.
+      return false;
+    }
+    else
     {
       for (int reg : code[i].regsIn)
       {
@@ -711,13 +730,6 @@ bool PPCAnalyzer::IsBusyWaitLoop(CodeBlock* block, CodeOp* code, size_t instruct
           return false;
         written_regs[reg] = true;
       }
-    }
-    else
-    {
-      // In the future, some subsets of other instruction types might get
-      // supported. Right now, only try loops that have this very
-      // restricted instruction set.
-      return false;
     }
   }
   return false;
@@ -753,8 +765,7 @@ u32 PPCAnalyzer::Analyze(u32 address, CodeBlock* block, CodeBuffer* buffer, std:
   u32 numFollows = 0;
   u32 num_inst = 0;
 
-  const u32 branchFollowThreshold =
-      (HasOption(OPTION_BRANCH_FOLLOW) && SConfig::GetInstance().bJITFollowBranch) ? 2 : 0;
+  const bool enable_follow = SConfig::GetInstance().bJITFollowBranch;
 
   for (std::size_t i = 0; i < block_size; ++i)
   {
@@ -766,6 +777,8 @@ u32 PPCAnalyzer::Analyze(u32 address, CodeBlock* block, CodeBuffer* buffer, std:
       break;
     }
 
+    num_inst++;
+
     const UGeckoInstruction inst = result.hex;
     GekkoOPInfo* opinfo = PPCTables::GetOpInfo(inst);
     code[i] = {};
@@ -775,153 +788,125 @@ u32 PPCAnalyzer::Analyze(u32 address, CodeBlock* block, CodeBuffer* buffer, std:
     code[i].skip = false;
     block->m_stats->numCycles += opinfo->numCycles;
     block->m_physical_addresses.insert(result.physical_address);
-    num_inst += 1;
 
     SetInstructionStats(block, &code[i], opinfo, static_cast<u32>(i));
 
     bool follow = false;
+
     bool conditional_continue = false;
 
     // TODO: Find the optimal value for BRANCH_FOLLOWING_THRESHOLD.
     //       If it is small, the performance will be down.
     //       If it is big, the size of generated code will be big and
     //       cache clearning will happen many times.
-    if (numFollows < branchFollowThreshold)
+    if (enable_follow && HasOption(OPTION_BRANCH_FOLLOW))
     {
-      switch (inst.OPCD)
+      if (inst.OPCD == 18 && block_size > 1)
       {
-      case 18:
-        if (block_size > 1)
+        // Always follow BX instructions.
+        follow = true;
+        if (inst.LK)
         {
-          // Always follow BX instructions.
-          follow = true;
-          if (inst.LK)
-          {
-            found_call = true;
-            caller = i;
-          }
+          found_call = true;
+          caller = i;
         }
-        break;
-      case 16:
-        if ((inst.BO & BO_DONT_DECREMENT_FLAG) && (inst.BO & BO_DONT_CHECK_CONDITION) &&
-            block_size > 1)
-        {
-          // Always follow unconditional BCX instructions, but they are very rare.
-          follow = true;
-          if (inst.LK)
-          {
-            found_call = true;
-            caller = i;
-          }
-        }
-        break;
-      case 19:
-        if (inst.SUBOP10 == 16 && !inst.LK && found_call)
-        {
-          code[i].branchTo = code[caller].address + 4;
-          if ((inst.BO & BO_DONT_DECREMENT_FLAG) && (inst.BO & BO_DONT_CHECK_CONDITION))
-          {
-            // bclrx with unconditional branch = return
-            // Follow it if we can propagate the LR value of the last CALL instruction.
-            // Through it would be easy to track the upper level of call/return,
-            // we can't guarantee the LR value. The PPC ABI forces all functions to push
-            // the LR value on the stack as there are no spare registers. So we'd need
-            // to check all store instruction to not alias with the stack.
-            follow = true;
-            found_call = false;
-            code[i].skip = true;
-
-            // Skip the RET, so also don't generate the stack entry for the BLR optimization.
-            code[caller].skipLRStack = true;
-          }
-        }
-        break;
-      case 31:
-        if (inst.SUBOP10 == 467)
-        {
-          // mtspr, skip CALL/RET merging as LR is overwritten.
-          const u32 index = (inst.SPRU << 5) | (inst.SPRL & 0x1F);
-          if (index == SPR_LR)
-          {
-            // We give up to follow the return address
-            // because we have to check the register usage.
-            found_call = false;
-          }
-        }
-        break;
       }
-    }
+      else if (inst.OPCD == 16 && (inst.BO & BO_DONT_DECREMENT_FLAG) &&
+               (inst.BO & BO_DONT_CHECK_CONDITION) && block_size > 1)
+      {
+        // Always follow unconditional BCX instructions, but they are very rare.
+        follow = true;
+        if (inst.LK)
+        {
+          found_call = true;
+          caller = i;
+        }
+      }
+      else if (inst.OPCD == 19 && inst.SUBOP10 == 16 && !inst.LK && found_call)
+      {
+        code[i].branchTo = code[caller].address + 4;
+        if ((inst.BO & BO_DONT_DECREMENT_FLAG) && (inst.BO & BO_DONT_CHECK_CONDITION) &&
+            numFollows < BRANCH_FOLLOWING_THRESHOLD)
+        {
+          // bclrx with unconditional branch = return
+          // Follow it if we can propagate the LR value of the last CALL instruction.
+          // Through it would be easy to track the upper level of call/return,
+          // we can't guarantee the LR value. The PPC ABI forces all functions to push
+          // the LR value on the stack as there are no spare registers. So we'd need
+          // to check all store instruction to not alias with the stack.
+          follow = true;
+          found_call = false;
+          code[i].skip = true;
 
-    if (i > 0 && i < 25 && code[i].branchTo == block->m_address)
-    {
-      code[i].branchIsIdleLoop = IsBusyWaitLoop(block, code, i);
-    }
-
-    if (follow)
-    {
-      // Follow the unconditional branch.
-      numFollows++;
-      address = code[i].branchTo;
-      continue;
+          // Skip the RET, so also don't generate the stack entry for the BLR optimization.
+          code[caller].skipLRStack = true;
+        }
+      }
+      else if (inst.OPCD == 31 && inst.SUBOP10 == 467)
+      {
+        // mtspr, skip CALL/RET merging as LR is overwritten.
+        const u32 index = (inst.SPRU << 5) | (inst.SPRL & 0x1F);
+        if (index == SPR_LR)
+        {
+          // We give up to follow the return address
+          // because we have to check the register usage.
+          found_call = false;
+        }
+      }
     }
 
     if (HasOption(OPTION_CONDITIONAL_CONTINUE))
     {
-      switch (inst.OPCD)
+      if (inst.OPCD == 16 &&
+          ((inst.BO & BO_DONT_DECREMENT_FLAG) == 0 || (inst.BO & BO_DONT_CHECK_CONDITION) == 0))
       {
-      case 16:
-        if (((inst.BO & BO_DONT_DECREMENT_FLAG) == 0 || (inst.BO & BO_DONT_CHECK_CONDITION) == 0))
-        {
-          // bcx with conditional branch
-          conditional_continue = true;
-        }
-        break;
-      case 19:
-        if (inst.SUBOP10 == 16)
-        {
-          if (((inst.BO & BO_DONT_DECREMENT_FLAG) == 0 || (inst.BO & BO_DONT_CHECK_CONDITION) == 0))
-          {
-            // bclrx with conditional branch
-            conditional_continue = true;
-          }
-        }
-        else if (inst.SUBOP10 == 528)
-        {
-          if ((inst.BO_2 & BO_DONT_CHECK_CONDITION) == 0)
-          {
-            // Rare bcctrx with conditional branch
-            // Seen in NES games
-            conditional_continue = true;
-          }
-        }
-        break;
-      case 3:
+        // bcx with conditional branch
+        conditional_continue = true;
+      }
+      else if (inst.OPCD == 19 && inst.SUBOP10 == 16 &&
+               ((inst.BO & BO_DONT_DECREMENT_FLAG) == 0 ||
+                (inst.BO & BO_DONT_CHECK_CONDITION) == 0))
+      {
+        // bclrx with conditional branch
+        conditional_continue = true;
+      }
+      else if (inst.OPCD == 3 || (inst.OPCD == 31 && inst.SUBOP10 == 4))
+      {
         // tw/twi tests and raises an exception
         conditional_continue = true;
-        break;
-      case 31:
-        if (inst.SUBOP10 == 4)
-        {
-          // tw/twi tests and raises an exception
-          conditional_continue = true;
-        }
-        break;
+      }
+      else if (inst.OPCD == 19 && inst.SUBOP10 == 528 && (inst.BO_2 & BO_DONT_CHECK_CONDITION) == 0)
+      {
+        // Rare bcctrx with conditional branch
+        // Seen in NES games
+        conditional_continue = true;
       }
     }
 
-    // Just pick the next instruction
-    address += 4;
-    if (!conditional_continue && opinfo->flags & FL_ENDBLOCK)  // right now we stop early
-    {
-      found_exit = true;
-      break;
-    }
+    code[i].branchIsIdleLoop =
+        code[i].branchTo == block->m_address && IsBusyWaitLoop(block, code, i);
 
-    if (conditional_continue)
+    if (follow && numFollows < BRANCH_FOLLOWING_THRESHOLD)
     {
-      // If we skip any conditional branch, we can't garantee to get the matching CALL/RET pair.
-      // So we stop inling the RET here and let the BLR optitmization handle this case.
-      found_call = false;
+      // Follow the unconditional branch.
+      numFollows++;
+      address = code[i].branchTo;
+    }
+    else
+    {
+      // Just pick the next instruction
+      address += 4;
+      if (!conditional_continue && opinfo->flags & FL_ENDBLOCK)  // right now we stop early
+      {
+        found_exit = true;
+        break;
+      }
+      if (conditional_continue)
+      {
+        // If we skip any conditional branch, we can't garantee to get the matching CALL/RET pair.
+        // So we stop inling the RET here and let the BLR optitmization handle this case.
+        found_call = false;
+      }
     }
   }
 
@@ -939,7 +924,7 @@ u32 PPCAnalyzer::Analyze(u32 address, CodeBlock* block, CodeBuffer* buffer, std:
   // Scan for flag dependencies; assume the next block (or any branch that can leave the block)
   // wants flags, to be safe.
   bool wantsCR0 = true, wantsCR1 = true, wantsFPRF = true, wantsCA = true;
-  BitSet32 fprInUse, gprInUse, gprInReg, fprInXmm;
+  BitSet32 fprInUse, gprInUse, gprDiscardable, fprDiscardable, fprInXmm;
   for (int i = block->m_num_instructions - 1; i >= 0; i--)
   {
     CodeOp& op = code[i];
@@ -948,35 +933,39 @@ u32 PPCAnalyzer::Analyze(u32 address, CodeBlock* block, CodeBuffer* buffer, std:
     const bool opWantsCR1 = op.wantsCR1;
     const bool opWantsFPRF = op.wantsFPRF;
     const bool opWantsCA = op.wantsCA;
-    op.wantsCR0 = wantsCR0 || op.canEndBlock;
-    op.wantsCR1 = wantsCR1 || op.canEndBlock;
-    op.wantsFPRF = wantsFPRF || op.canEndBlock;
-    op.wantsCA = wantsCA || op.canEndBlock;
-    wantsCR0 |= opWantsCR0 || op.canEndBlock;
-    wantsCR1 |= opWantsCR1 || op.canEndBlock;
-    wantsFPRF |= opWantsFPRF || op.canEndBlock;
-    wantsCA |= opWantsCA || op.canEndBlock;
+    op.wantsCR0 = wantsCR0 || op.canEndBlock || op.canCauseException;
+    op.wantsCR1 = wantsCR1 || op.canEndBlock || op.canCauseException;
+    op.wantsFPRF = wantsFPRF || op.canEndBlock || op.canCauseException;
+    op.wantsCA = wantsCA || op.canEndBlock || op.canCauseException;
+    wantsCR0 |= opWantsCR0 || op.canEndBlock || op.canCauseException;
+    wantsCR1 |= opWantsCR1 || op.canEndBlock || op.canCauseException;
+    wantsFPRF |= opWantsFPRF || op.canEndBlock || op.canCauseException;
+    wantsCA |= opWantsCA || op.canEndBlock || op.canCauseException;
     wantsCR0 &= !op.outputCR0 || opWantsCR0;
     wantsCR1 &= !op.outputCR1 || opWantsCR1;
     wantsFPRF &= !op.outputFPRF || opWantsFPRF;
     wantsCA &= !op.outputCA || opWantsCA;
     op.gprInUse = gprInUse;
     op.fprInUse = fprInUse;
-    op.gprInReg = gprInReg;
+    op.gprDiscardable = gprDiscardable;
+    op.fprDiscardable = fprDiscardable;
     op.fprInXmm = fprInXmm;
-    // TODO: if there's no possible endblocks or exceptions in between, tell the regcache
-    // we can throw away a register if it's going to be overwritten later.
     gprInUse |= op.regsIn;
-    gprInReg |= op.regsIn;
     fprInUse |= op.fregsIn;
+    if (op.canEndBlock || op.canCauseException)
+    {
+      gprDiscardable = BitSet32{};
+      fprDiscardable = BitSet32{};
+    }
+    else
+    {
+      gprDiscardable |= op.regsOut;
+      gprDiscardable &= ~op.regsIn;
+      fprDiscardable |= op.GetFregsOut();
+      fprDiscardable &= ~op.fregsIn;
+    }
     if (strncmp(op.opinfo->opname, "stfd", 4))
       fprInXmm |= op.fregsIn;
-    // For now, we need to count output registers as "used" though; otherwise the flush
-    // will result in a redundant store (e.g. store to regcache, then store again to
-    // the same location later).
-    gprInUse |= op.regsOut;
-    if (op.fregOut >= 0)
-      fprInUse[op.fregOut] = true;
   }
 
   // Forward scan, for flags that need the other direction for calculation.
@@ -991,40 +980,75 @@ u32 PPCAnalyzer::Analyze(u32 address, CodeBlock* block, CodeBuffer* buffer, std:
 
     op.fprIsSingle = fprIsSingle;
     op.fprIsDuplicated = fprIsDuplicated;
-    op.fprIsStoreSafe = fprIsStoreSafe;
+    op.fprIsStoreSafeBeforeInst = fprIsStoreSafe;
     if (op.fregOut >= 0)
     {
-      fprIsSingle[op.fregOut] = false;
-      fprIsDuplicated[op.fregOut] = false;
-      fprIsStoreSafe[op.fregOut] = false;
-      // Single, duplicated, and doesn't need PPC_FP.
-      if (op.opinfo->type == OpType::SingleFP)
+      BitSet32 bitexact_inputs;
+      if (op.opinfo->flags &
+          (FL_IN_FLOAT_A_BITEXACT | FL_IN_FLOAT_B_BITEXACT | FL_IN_FLOAT_C_BITEXACT))
+      {
+        if (op.opinfo->flags & FL_IN_FLOAT_A_BITEXACT)
+          bitexact_inputs[op.inst.FA] = true;
+        if (op.opinfo->flags & FL_IN_FLOAT_B_BITEXACT)
+          bitexact_inputs[op.inst.FB] = true;
+        if (op.opinfo->flags & FL_IN_FLOAT_C_BITEXACT)
+          bitexact_inputs[op.inst.FC] = true;
+      }
+
+      if (op.opinfo->type == OpType::SingleFP || !strncmp(op.opinfo->opname, "frsp", 4))
       {
         fprIsSingle[op.fregOut] = true;
         fprIsDuplicated[op.fregOut] = true;
-        fprIsStoreSafe[op.fregOut] = true;
       }
-      // Single and duplicated, but might be a denormal (not safe to skip PPC_FP).
-      // TODO: if we go directly from a load to store, skip conversion entirely?
-      // TODO: if we go directly from a load to a float instruction, and the value isn't used
-      // for anything else, we can skip PPC_FP on a load too.
-      if (!strncmp(op.opinfo->opname, "lfs", 3))
+      else if (!strncmp(op.opinfo->opname, "lfs", 3))
       {
         fprIsSingle[op.fregOut] = true;
         fprIsDuplicated[op.fregOut] = true;
       }
-      // Paired are still floats, but the top/bottom halves may differ.
-      if (op.opinfo->type == OpType::PS || op.opinfo->type == OpType::LoadPS)
+      else if (bitexact_inputs)
+      {
+        fprIsSingle[op.fregOut] = (fprIsSingle & bitexact_inputs) == bitexact_inputs;
+        fprIsDuplicated[op.fregOut] = false;
+      }
+      else if (op.opinfo->type == OpType::PS || op.opinfo->type == OpType::LoadPS)
       {
         fprIsSingle[op.fregOut] = true;
-        fprIsStoreSafe[op.fregOut] = true;
+        fprIsDuplicated[op.fregOut] = false;
       }
-      // Careful: changing the float mode in a block breaks this optimization, since
-      // a previous float op might have had had FTZ off while the later store has FTZ
-      // on. So, discard all information we have.
+      else
+      {
+        fprIsSingle[op.fregOut] = false;
+        fprIsDuplicated[op.fregOut] = false;
+      }
+
       if (!strncmp(op.opinfo->opname, "mtfs", 4))
+      {
+        // Careful: changing the float mode in a block breaks the store-safe optimization,
+        // since a previous float op might have had FTZ off while the later store has FTZ on.
+        // So, discard all information we have.
         fprIsStoreSafe = BitSet32(0);
+      }
+      else if (bitexact_inputs)
+      {
+        // If the instruction copies bits between registers (without flushing denormals to zero
+        // or turning SNaN into QNaN), the output is store-safe if the inputs are.
+        fprIsStoreSafe[op.fregOut] = (fprIsStoreSafe & bitexact_inputs) == bitexact_inputs;
+      }
+      else
+      {
+        // Other FPU instructions are store-safe if they perform a single-precision
+        // arithmetic operation.
+
+        // TODO: if we go directly from a load to store, skip conversion entirely?
+        // TODO: if we go directly from a load to a float instruction, and the value isn't used
+        // for anything else, we can use fast single -> double conversion after the load.
+
+        fprIsStoreSafe[op.fregOut] = op.opinfo->type == OpType::SingleFP ||
+                                     op.opinfo->type == OpType::PS ||
+                                     !strncmp(op.opinfo->opname, "frsp", 4);
+      }
     }
+    op.fprIsStoreSafeAfterInst = fprIsStoreSafe;
 
     if (op.opinfo->type == OpType::StorePS || op.opinfo->type == OpType::LoadPS)
     {

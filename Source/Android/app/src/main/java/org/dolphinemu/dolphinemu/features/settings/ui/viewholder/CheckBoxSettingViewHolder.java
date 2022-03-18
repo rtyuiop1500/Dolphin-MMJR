@@ -1,13 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.features.settings.ui.viewholder;
 
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.TextView;
 
+import androidx.annotation.Nullable;
+
 import org.dolphinemu.dolphinemu.R;
 import org.dolphinemu.dolphinemu.features.settings.model.view.CheckBoxSetting;
+import org.dolphinemu.dolphinemu.features.settings.model.view.LogCheckBoxSetting;
 import org.dolphinemu.dolphinemu.features.settings.model.view.SettingsItem;
 import org.dolphinemu.dolphinemu.features.settings.ui.SettingsAdapter;
+import org.dolphinemu.dolphinemu.features.settings.ui.SettingsFragmentPresenter;
 
 public final class CheckBoxSettingViewHolder extends SettingViewHolder
 {
@@ -35,18 +42,34 @@ public final class CheckBoxSettingViewHolder extends SettingViewHolder
   public void bind(SettingsItem item)
   {
     mItem = (CheckBoxSetting) item;
-    mTextSettingName.setText(item.getNameId());
-    if (item.getDescriptionId() > 0)
-    {
-      mTextSettingDescription.setText(item.getDescriptionId());
-    }
-    mCheckbox.setChecked(mItem.isChecked());
+
+    mTextSettingName.setText(item.getName());
+    mTextSettingDescription.setText(item.getDescription());
+
+    mCheckbox.setChecked(mItem.isChecked(getAdapter().getSettings()));
+
+    setStyle(mTextSettingName, mItem);
   }
 
   @Override
   public void onClick(View clicked)
   {
+    if (!mItem.isEditable())
+    {
+      showNotRuntimeEditableError();
+      return;
+    }
+
     mCheckbox.toggle();
+
     getAdapter().onBooleanClick(mItem, getAdapterPosition(), mCheckbox.isChecked());
+
+    setStyle(mTextSettingName, mItem);
+  }
+
+  @Nullable @Override
+  protected SettingsItem getItem()
+  {
+    return mItem;
   }
 }

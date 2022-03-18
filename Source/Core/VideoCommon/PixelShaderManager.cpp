@@ -1,6 +1,5 @@
 // Copyright 2008 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoCommon/PixelShaderManager.h"
 
@@ -14,11 +13,10 @@
 #include "VideoCommon/XFMemory.h"
 #include "VideoCommon/OnScreenDisplay.h"
 
-
-static bool s_bFogRangeAdjustChanged;
-static bool s_bViewPortChanged;
-static bool s_bIndirectDirty;
-static bool s_bDestAlphaDirty;
+bool PixelShaderManager::s_bFogRangeAdjustChanged;
+bool PixelShaderManager::s_bViewPortChanged;
+bool PixelShaderManager::s_bIndirectDirty;
+bool PixelShaderManager::s_bDestAlphaDirty;
 
 static u32 s_alphaTest;
 static u32 s_fogRangeBase;
@@ -26,6 +24,7 @@ static u32 s_dstalpha;
 static u32 s_late_ztest;
 static u32 s_rgba6_format;
 static u32 s_dither;
+static u32 s_bounding_box;
 
 static u32 s_blend_enable;
 static u32 s_blend_src_factor;
@@ -35,34 +34,11 @@ static u32 s_blend_dst_factor_alpha;
 static u32 s_blend_subtract;
 static u32 s_blend_subtract_alpha;
 
-PixelShaderConstants PixelShaderManager::constants;
 using uint4 = std::array<u32, 4>;
-using int4 = std::array<s32, 4>;
-static struct ConstantsPadding
-{
-  u32 genmode;                  // .z
-  u32 alphaTest;                // .w
-  u32 fogParam3;                // .x
-  u32 fogRangeBase;             // .y
-  u32 dstalpha;                 // .z
-  u32 ztex_op;                  // .w
-  u32 late_ztest;               // .x (bool)
-  u32 rgba6_format;             // .y (bool)
-  u32 dither;                   // .z (bool)
-  u32 bounding_box;             // .w (bool)
-  std::array<uint4, 16> pack1;  // .xy - combiners, .z - tevind, .w - iref
-  std::array<uint4, 8> pack2;   // .x - tevorder, .y - tevksel
-  std::array<int4, 32> konst;   // .rgba
-  // The following are used in ubershaders when using shader_framebuffer_fetch blending
-  u32 blend_enable;
-  u32 blend_src_factor;
-  u32 blend_src_factor_alpha;
-  u32 blend_dst_factor;
-  u32 blend_dst_factor_alpha;
-  u32 blend_subtract;
-  u32 blend_subtract_alpha;
-} StatePaddingAfter{};
+static std::array<uint4, 16> s_pack1;  // .xy - combiners, .z - tevind, .w - iref
+static std::array<uint4, 8> s_pack2;   // .x - tevorder, .y - tevksel
 
+PixelShaderConstants PixelShaderManager::constants;
 bool PixelShaderManager::dirty;
 
 void PixelShaderManager::Init()
@@ -73,7 +49,7 @@ void PixelShaderManager::Init()
   s_bFogRangeAdjustChanged = true;
   s_bViewPortChanged = false;
   s_bIndirectDirty = false;
-  s_bDestAlphaDirty = true;
+  s_bDestAlphaDirty = false;
 
   s_alphaTest = 0;
   s_fogRangeBase = 0;
@@ -81,6 +57,7 @@ void PixelShaderManager::Init()
   s_late_ztest = 0;
   s_rgba6_format = 0;
   s_dither = 0;
+  s_bounding_box = 0;
 
   s_blend_enable = 0;
   s_blend_src_factor = 0;
@@ -89,6 +66,9 @@ void PixelShaderManager::Init()
   s_blend_dst_factor_alpha = 0;
   s_blend_subtract = 0;
   s_blend_subtract_alpha = 0;
+
+  memset(s_pack1.data(), 0, 16 * 4 * 4);
+  memset(s_pack2.data(), 0, 8 * 4 * 4);
 
   SetIndMatrixChanged(0);
   SetIndMatrixChanged(1);
@@ -181,7 +161,7 @@ void PixelShaderManager::SetConstants()
     // Destination alpha is only enabled if alpha writes are enabled. Force entire uniform to zero
     // when disabled.
     u32 dstalpha = bpmem.blendmode.alphaupdate && bpmem.dstalpha.enable &&
-                           bpmem.zcontrol.pixel_format == PEControl::RGBA6_Z24 ?
+                           bpmem.zcontrol.pixel_format == PixelFormat::RGBA6_Z24 ?
                        bpmem.dstalpha.hex :
                        0;
 
@@ -190,48 +170,55 @@ void PixelShaderManager::SetConstants()
       s_dstalpha = dstalpha;
       dirty = true;
     }
-    s_bDestAlphaDirty = false;
   }
 }
 
 void PixelShaderManager::SetTevColor(int index, int component, s32 value)
 {
   auto& c = constants.colors[index];
-  if(c[component] != value)
-  {
-    c[component] = value;
-    dirty = true;
-  }
+  c[component] = value;
+  dirty = true;
+
+  PRIM_LOG("tev color{}: {} {} {} {}", index, c[0], c[1], c[2], c[3]);
 }
 
 void PixelShaderManager::SetTevKonstColor(int index, int component, s32 value)
 {
   auto& c = constants.kcolors[index];
-  if(c[component] != value)
-  {
-    c[component] = value;
-    dirty = true;
-  }
+  c[component] = value;
+  dirty = true;
 }
 
 void PixelShaderManager::SetTevOrder(int index, u32 order)
 {
-
+  if (s_pack2[index][0] != order)
+  {
+    s_pack2[index][0] = order;
+    dirty = true;
+  }
 }
 
 void PixelShaderManager::SetTevKSel(int index, u32 ksel)
 {
-
+  if (s_pack2[index][1] != ksel)
+  {
+    s_pack2[index][1] = ksel;
+    dirty = true;
+  }
 }
 
 void PixelShaderManager::SetTevCombiner(int index, int alpha, u32 combiner)
 {
-
+  if (s_pack1[index][alpha] != combiner)
+  {
+    s_pack1[index][alpha] = combiner;
+    dirty = true;
+  }
 }
 
 void PixelShaderManager::SetTevIndirectChanged()
 {
-
+  s_bIndirectDirty = true;
 }
 
 void PixelShaderManager::SetAlpha()
@@ -249,7 +236,7 @@ void PixelShaderManager::SetAlphaTestChanged()
   // TODO: we could optimize this further and check the actual constants,
   // i.e. "a <= 0" and "a >= 255" will always pass.
   u32 alpha_test =
-      bpmem.alpha_test.TestResult() != AlphaTest::PASS ? bpmem.alpha_test.hex | 1 << 31 : 0;
+      bpmem.alpha_test.TestResult() != AlphaTestResult::Pass ? bpmem.alpha_test.hex | 1 << 31 : 0;
   if (s_alphaTest != alpha_test)
   {
     s_alphaTest = alpha_test;
@@ -264,16 +251,22 @@ void PixelShaderManager::SetDestAlphaChanged()
 
 void PixelShaderManager::SetTexDims(int texmapid, u32 width, u32 height)
 {
-  float rwidth = 1.0f / (width * 128.0f);
-  float rheight = 1.0f / (height * 128.0f);
-
   // TODO: move this check out to callee. There we could just call this function on texture changes
   // or better, use textureSize() in glsl
-  if (constants.texdims[texmapid][0] != rwidth || constants.texdims[texmapid][1] != rheight)
+  if (constants.texdims[texmapid][0] != width || constants.texdims[texmapid][1] != height)
     dirty = true;
 
-  constants.texdims[texmapid][0] = rwidth;
-  constants.texdims[texmapid][1] = rheight;
+  constants.texdims[texmapid][0] = width;
+  constants.texdims[texmapid][1] = height;
+}
+
+void PixelShaderManager::SetSamplerState(int texmapid, u32 tm0, u32 tm1)
+{
+  if (s_pack2[texmapid][2] != tm0 || s_pack2[texmapid][3] != tm1)
+    dirty = true;
+
+  s_pack2[texmapid][2] = tm0;
+  s_pack2[texmapid][3] = tm1;
 }
 
 void PixelShaderManager::SetZTextureBias()
@@ -315,9 +308,7 @@ void PixelShaderManager::SetIndTexScaleChanged(bool high)
 
 void PixelShaderManager::SetIndMatrixChanged(int matrixidx)
 {
-  int scale = ((u32)bpmem.indmtx[matrixidx].col0.s0 << 0) |
-              ((u32)bpmem.indmtx[matrixidx].col1.s1 << 2) |
-              ((u32)bpmem.indmtx[matrixidx].col2.s2 << 4);
+  const u8 scale = bpmem.indmtx[matrixidx].GetScale();
 
   // xyz - static matrix
   // w - dynamic matrix scale / 128
@@ -331,7 +322,7 @@ void PixelShaderManager::SetIndMatrixChanged(int matrixidx)
   constants.indtexmtx[2 * matrixidx + 1][3] = 17 - scale;
   dirty = true;
 
-  PRIM_LOG("indmtx%d: scale=%d, mat=(%d %d %d; %d %d %d)", matrixidx, scale,
+  PRIM_LOG("indmtx{}: scale={}, mat=({} {} {}; {} {} {})", matrixidx, scale,
            bpmem.indmtx[matrixidx].col0.ma, bpmem.indmtx[matrixidx].col1.mc,
            bpmem.indmtx[matrixidx].col2.me, bpmem.indmtx[matrixidx].col0.mb,
            bpmem.indmtx[matrixidx].col1.md, bpmem.indmtx[matrixidx].col2.mf);
@@ -341,25 +332,26 @@ void PixelShaderManager::SetZTextureTypeChanged()
 {
   switch (bpmem.ztex2.type)
   {
-  case TEV_ZTEX_TYPE_U8:
+  case ZTexFormat::U8:
     constants.zbias[0][0] = 0;
     constants.zbias[0][1] = 0;
     constants.zbias[0][2] = 0;
     constants.zbias[0][3] = 1;
     break;
-  case TEV_ZTEX_TYPE_U16:
+  case ZTexFormat::U16:
     constants.zbias[0][0] = 1;
     constants.zbias[0][1] = 0;
     constants.zbias[0][2] = 0;
     constants.zbias[0][3] = 256;
     break;
-  case TEV_ZTEX_TYPE_U24:
+  case ZTexFormat::U24:
     constants.zbias[0][0] = 65536;
     constants.zbias[0][1] = 256;
     constants.zbias[0][2] = 1;
     constants.zbias[0][3] = 0;
     break;
   default:
+    PanicAlertFmt("Invalid ztex format {}", bpmem.ztex2.type);
     break;
   }
   dirty = true;
@@ -367,14 +359,14 @@ void PixelShaderManager::SetZTextureTypeChanged()
 
 void PixelShaderManager::SetZTextureOpChanged()
 {
-
+  dirty = true;
 }
 
 void PixelShaderManager::SetTexCoordChanged(u8 texmapid)
 {
   TCoordInfo& tc = bpmem.texcoords[texmapid];
-  constants.texdims[texmapid][2] = (float)(tc.s.scale_minus_1 + 1) * 128.0f;
-  constants.texdims[texmapid][3] = (float)(tc.t.scale_minus_1 + 1) * 128.0f;
+  constants.texdims[texmapid][2] = tc.s.scale_minus_1 + 1;
+  constants.texdims[texmapid][3] = tc.t.scale_minus_1 + 1;
   dirty = true;
 }
 
@@ -424,13 +416,14 @@ void PixelShaderManager::SetFogRangeAdjustChanged()
 
 void PixelShaderManager::SetGenModeChanged()
 {
-
+  s_bIndirectDirty = true;
+  dirty = true;
 }
 
 void PixelShaderManager::SetZModeControl()
 {
   u32 late_ztest = bpmem.zmode.testenable && !bpmem.zcontrol.early_ztest;
-  u32 rgba6_format = (bpmem.zcontrol.pixel_format == PEControl::RGBA6_Z24 && !g_ActiveConfig.bForceTrueColor) ? 1 : 0;
+  u32 rgba6_format = (bpmem.zcontrol.pixel_format == PixelFormat::RGBA6_Z24 && !g_ActiveConfig.bForceTrueColor) ? 1 : 0;
   u32 dither = rgba6_format && bpmem.blendmode.dither;
   if (s_late_ztest != late_ztest || s_rgba6_format != rgba6_format || s_dither != dither)
   {
@@ -457,24 +450,24 @@ void PixelShaderManager::SetBlendModeChanged()
     s_blend_enable = state.blendenable;
     dirty = true;
   }
-  if (s_blend_src_factor != state.srcfactor)
+  if (constants.blend_src_factor != state.srcfactor)
   {
-    s_blend_src_factor = state.srcfactor;
+    constants.blend_src_factor = state.srcfactor;
     dirty = true;
   }
-  if (s_blend_src_factor_alpha != state.srcfactoralpha)
+  if (constants.blend_src_factor_alpha != state.srcfactoralpha)
   {
-    s_blend_src_factor_alpha = state.srcfactoralpha;
+    constants.blend_src_factor_alpha = state.srcfactoralpha;
     dirty = true;
   }
-  if (s_blend_dst_factor != state.dstfactor)
+  if (constants.blend_dst_factor != state.dstfactor)
   {
-    s_blend_dst_factor = state.dstfactor;
+    constants.blend_dst_factor = state.dstfactor;
     dirty = true;
   }
-  if (s_blend_dst_factor_alpha != state.dstfactoralpha)
+  if (constants.blend_dst_factor_alpha != state.dstfactoralpha)
   {
-    s_blend_dst_factor_alpha = state.dstfactoralpha;
+    constants.blend_dst_factor_alpha = state.dstfactoralpha;
     dirty = true;
   }
   if (s_blend_subtract != state.subtract)
@@ -492,18 +485,25 @@ void PixelShaderManager::SetBlendModeChanged()
 
 void PixelShaderManager::SetBoundingBoxActive(bool active)
 {
+  const bool enable = active && g_ActiveConfig.bBBoxEnable;
+  if (enable == (s_bounding_box != 0))
+    return;
+
   if (active)
   {
     if (!g_ActiveConfig.backend_info.bSupportsBBox)
     {
       OSD::AddTypedMessage(OSD::MessageType::BoundingBoxNotice, "Bounding box is not available!",
-                           1);
+                           4000);
     }
     else if (g_ActiveConfig.bBBoxEnable)
     {
       OSD::AddTypedMessage(OSD::MessageType::BoundingBoxNotice, "Bounding box is active.", 4000);
     }
   }
+
+  s_bounding_box = active;
+  dirty = true;
 }
 
 void PixelShaderManager::DoState(PointerWrap& p)
@@ -514,7 +514,6 @@ void PixelShaderManager::DoState(PointerWrap& p)
   p.Do(s_bDestAlphaDirty);
 
   p.Do(constants);
-  p.Do(StatePaddingAfter);
 
   if (p.GetMode() == PointerWrap::MODE_READ)
   {

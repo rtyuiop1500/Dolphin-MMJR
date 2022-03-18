@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.utils;
 
 import android.graphics.Bitmap;
+
 import org.dolphinemu.dolphinemu.model.GameFile;
+
 import java.io.FileOutputStream;
 
 public final class CoverHelper
@@ -44,7 +48,7 @@ public final class CoverHelper
     return id;
   }
 
-  private static String getRegion(GameFile game)
+  public static String getRegion(GameFile game)
   {
     String region;
     switch (game.getRegion())
@@ -98,9 +102,8 @@ public final class CoverHelper
       cover.compress(Bitmap.CompressFormat.PNG, 100, out);
       out.close();
     }
-    catch (Exception e)
+    catch (Exception ignored)
     {
-      // Do nothing
     }
   }
 }

@@ -1,51 +1,48 @@
 // Copyright 2015 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <mutex>
 
 #include "VideoCommon/AsyncRequests.h"
 #include "VideoCommon/Fifo.h"
 #include "VideoCommon/RenderBase.h"
+#include "VideoCommon/Statistics.h"
 #include "VideoCommon/VertexManagerBase.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoCommon.h"
+#include "VideoCommon/VideoState.h"
 
 AsyncRequests AsyncRequests::s_singleton;
 
 AsyncRequests::AsyncRequests() = default;
 
-void AsyncRequests::DoFlush()
+void AsyncRequests::PullEventsInternal()
 {
   // This is only called if the queue isn't empty.
   // So just flush the pipeline to get accurate results.
-  if (!m_queue.empty())
-  {
-    g_vertex_manager->Flush();
-  }
-}
+  g_vertex_manager->Flush();
 
-void AsyncRequests::PullEventsInternal()
-{
   std::unique_lock<std::mutex> lock(m_mutex);
+  m_empty.Set();
 
   while (!m_queue.empty())
   {
-    Event& e = m_queue.front();
+    Event e = m_queue.front();
 
     // try to merge as many efb pokes as possible
     // it's a bit hacky, but some games render a complete frame in this way
-    if (m_queue.size() > 1 && (e.type == Event::EFB_POKE_COLOR || e.type == Event::EFB_POKE_Z))
+    if ((e.type == Event::EFB_POKE_COLOR || e.type == Event::EFB_POKE_Z))
     {
-      const Event& first_event = m_queue.front();
+      m_merged_efb_pokes.clear();
+      Event first_event = m_queue.front();
       const auto t = first_event.type == Event::EFB_POKE_COLOR ? EFBAccessType::PokeColor :
                                                                  EFBAccessType::PokeZ;
-      m_merged_efb_pokes.clear();
 
       do
       {
-        EfbPokeData d;
         e = m_queue.front();
+
+        EfbPokeData d;
         d.data = e.efb_poke.data;
         d.x = e.efb_poke.x;
         d.y = e.efb_poke.y;
@@ -67,8 +64,6 @@ void AsyncRequests::PullEventsInternal()
     m_queue.pop();
   }
 
-  m_empty.Set();
-
   if (m_wake_me_up_again)
   {
     m_wake_me_up_again = false;
@@ -82,23 +77,29 @@ void AsyncRequests::PushEvent(const AsyncRequests::Event& event, bool blocking)
 
   if (m_passthrough)
   {
-    lock.unlock();
     HandleEvent(event);
     return;
   }
+
+  m_empty.Clear();
+  m_wake_me_up_again |= blocking;
 
   if (!m_enable)
     return;
 
   m_queue.push(event);
-  m_empty.Clear();
 
+  Fifo::RunGpu();
   if (blocking)
   {
-    Fifo::RunGpu();
-    m_wake_me_up_again = true;
     m_cond.wait(lock, [this] { return m_queue.empty(); });
   }
+}
+
+void AsyncRequests::WaitForEmptyQueue()
+{
+  std::unique_lock<std::mutex> lock(m_mutex);
+  m_cond.wait(lock, [this] { return m_queue.empty(); });
 }
 
 void AsyncRequests::SetEnable(bool enable)
@@ -109,7 +110,8 @@ void AsyncRequests::SetEnable(bool enable)
   if (!enable)
   {
     // flush the queue on disabling
-    std::queue<Event>().swap(m_queue);
+    while (!m_queue.empty())
+      m_queue.pop();
     if (m_wake_me_up_again)
       m_cond.notify_all();
   }
@@ -121,6 +123,7 @@ void AsyncRequests::HandleEvent(const AsyncRequests::Event& e)
   {
   case Event::EFB_POKE_COLOR:
   {
+    INCSTAT(g_stats.this_frame.num_efb_pokes);
     EfbPokeData poke = {e.efb_poke.x, e.efb_poke.y, e.efb_poke.data};
     g_renderer->PokeEFB(EFBAccessType::PokeColor, &poke, 1);
   }
@@ -128,17 +131,20 @@ void AsyncRequests::HandleEvent(const AsyncRequests::Event& e)
 
   case Event::EFB_POKE_Z:
   {
+    INCSTAT(g_stats.this_frame.num_efb_pokes);
     EfbPokeData poke = {e.efb_poke.x, e.efb_poke.y, e.efb_poke.data};
     g_renderer->PokeEFB(EFBAccessType::PokeZ, &poke, 1);
   }
   break;
 
   case Event::EFB_PEEK_COLOR:
+    INCSTAT(g_stats.this_frame.num_efb_peeks);
     *e.efb_peek.data =
         g_renderer->AccessEFB(EFBAccessType::PeekColor, e.efb_peek.x, e.efb_peek.y, 0);
     break;
 
   case Event::EFB_PEEK_Z:
+    INCSTAT(g_stats.this_frame.num_efb_peeks);
     *e.efb_peek.data = g_renderer->AccessEFB(EFBAccessType::PeekZ, e.efb_peek.x, e.efb_peek.y, 0);
     break;
 
@@ -153,6 +159,10 @@ void AsyncRequests::HandleEvent(const AsyncRequests::Event& e)
 
   case Event::PERF_QUERY:
     g_perf_query->FlushResults();
+    break;
+
+  case Event::DO_SAVE_STATE:
+    VideoCommon_DoState(*e.do_save_state.p);
     break;
   }
 }

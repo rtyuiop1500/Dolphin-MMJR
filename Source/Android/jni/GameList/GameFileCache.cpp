@@ -1,38 +1,65 @@
 // Copyright 2018 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <memory>
 #include <vector>
 
 #include <jni.h>
 
-#include "UICommon/GameFile.h"
 #include "UICommon/GameFileCache.h"
 #include "jni/AndroidCommon/AndroidCommon.h"
 #include "jni/AndroidCommon/IDCache.h"
 #include "jni/GameList/GameFile.h"
 
-static std::shared_ptr<UICommon::GameFileCache> g_game_file_cache;
+namespace UICommon
+{
+class GameFile;
+}
+
+static UICommon::GameFileCache* GetPointer(JNIEnv* env, jobject obj)
+{
+  return reinterpret_cast<UICommon::GameFileCache*>(
+      env->GetLongField(obj, IDCache::GetGameFileCachePointer()));
+}
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_init(JNIEnv* env,
-                                                                               jobject obj)
+JNIEXPORT jlong JNICALL
+Java_org_dolphinemu_dolphinemu_model_GameFileCache_newGameFileCache(JNIEnv* env, jclass)
 {
-  g_game_file_cache = std::make_shared<UICommon::GameFileCache>();
+  return reinterpret_cast<jlong>(new UICommon::GameFileCache());
+}
+
+JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_finalize(JNIEnv* env,
+                                                                                   jobject obj)
+{
+  delete GetPointer(env, obj);
+}
+
+JNIEXPORT jobjectArray JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_getAllGamePaths(
+    JNIEnv* env, jclass, jobjectArray folder_paths, jboolean recursive_scan)
+{
+  return VectorToJStringArray(
+      env, UICommon::FindAllGamePaths(JStringArrayToVector(env, folder_paths), recursive_scan));
+}
+
+JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_getSize(JNIEnv* env,
+                                                                                  jobject obj)
+{
+  return static_cast<jint>(GetPointer(env, obj)->GetSize());
 }
 
 JNIEXPORT jobjectArray JNICALL
 Java_org_dolphinemu_dolphinemu_model_GameFileCache_getAllGames(JNIEnv* env, jobject obj)
 {
-  const jobjectArray array = env->NewObjectArray(static_cast<jsize>(g_game_file_cache->GetSize()),
-                                                 IDCache::sGameFile.Clazz, nullptr);
+  const UICommon::GameFileCache* ptr = GetPointer(env, obj);
+  const jobjectArray array =
+      env->NewObjectArray(static_cast<jsize>(ptr->GetSize()), IDCache::GetGameFileClass(), nullptr);
   jsize i = 0;
-  g_game_file_cache->ForEach([env, array, &i](const auto& game_file) {
-    env->SetObjectArrayElement(array, i++, GameFileToJava(env, game_file.get()));
+  GetPointer(env, obj)->ForEach([env, array, &i](const auto& game_file) {
+    env->SetObjectArrayElement(array, i++, GameFileToJava(env, game_file));
   });
   return array;
 }
@@ -42,45 +69,32 @@ JNIEXPORT jobject JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_add
                                                                                       jstring path)
 {
   bool cache_changed = false;
-  return GameFileToJava(env,
-                        g_game_file_cache->AddOrGet(GetJString(env, path), &cache_changed).get());
+  return GameFileToJava(env, GetPointer(env, obj)->AddOrGet(GetJString(env, path), &cache_changed));
 }
 
 JNIEXPORT jboolean JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_update(
-    JNIEnv* env, jobject obj, jobjectArray folder_paths)
+    JNIEnv* env, jobject obj, jobjectArray game_paths)
 {
-  jsize size = env->GetArrayLength(folder_paths);
-
-  std::vector<std::string> folder_paths_vector;
-  folder_paths_vector.reserve(size);
-
-  for (jsize i = 0; i < size; ++i)
-  {
-    const jstring path = reinterpret_cast<jstring>(env->GetObjectArrayElement(folder_paths, i));
-    folder_paths_vector.push_back(GetJString(env, path));
-    env->DeleteLocalRef(path);
-  }
-
-  return g_game_file_cache->Update(UICommon::FindAllGamePaths(folder_paths_vector, false));
+  return GetPointer(env, obj)->Update(JStringArrayToVector(env, game_paths));
 }
 
 JNIEXPORT jboolean JNICALL
 Java_org_dolphinemu_dolphinemu_model_GameFileCache_updateAdditionalMetadata(JNIEnv* env,
                                                                             jobject obj)
 {
-  return g_game_file_cache->UpdateAdditionalMetadata();
+  return GetPointer(env, obj)->UpdateAdditionalMetadata();
 }
 
 JNIEXPORT jboolean JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_load(JNIEnv* env,
                                                                                    jobject obj)
 {
-  return g_game_file_cache->Load();
+  return GetPointer(env, obj)->Load();
 }
 
 JNIEXPORT jboolean JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_save(JNIEnv* env,
                                                                                    jobject obj)
 {
-  return g_game_file_cache->Save();
+  return GetPointer(env, obj)->Save();
 }
 
 #ifdef __cplusplus

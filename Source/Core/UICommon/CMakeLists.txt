@@ -1,10 +1,24 @@
 add_library(uicommon
+  AutoUpdate.cpp
+  AutoUpdate.h
+  CommandLineParse.cpp
+  CommandLineParse.h
+  Disassembler.cpp
+  Disassembler.h
+  DiscordPresence.cpp
+  DiscordPresence.h
   GameFile.cpp
   GameFile.h
   GameFileCache.cpp
   GameFileCache.h
   NetPlayIndex.cpp
   NetPlayIndex.h
+  ResourcePack/Manager.cpp
+  ResourcePack/Manager.h
+  ResourcePack/Manifest.cpp
+  ResourcePack/Manifest.h
+  ResourcePack/ResourcePack.cpp
+  ResourcePack/ResourcePack.h
   UICommon.cpp
   UICommon.h
   USBUtils.cpp
@@ -16,29 +30,14 @@ add_library(uicommon
 target_link_libraries(uicommon
 PUBLIC
   common
+  cpp-optparse
+  minizip
+  pugixml
 
 PRIVATE
+  fmt::fmt
   $<$<BOOL:APPLE>:${IOK_LIBRARY}>
 )
-
-if(NOT ANDROID)
-  target_sources(uicommon PRIVATE 
-    AutoUpdate.cpp
-    AutoUpdate.h
-    CommandLineParse.cpp
-    CommandLineParse.h
-    Disassembler.cpp
-    Disassembler.h
-    DiscordPresence.cpp
-    DiscordPresence.h
-    ResourcePack/Manager.cpp
-    ResourcePack/Manager.h
-    ResourcePack/Manifest.cpp
-    ResourcePack/Manifest.h
-    ResourcePack/ResourcePack.cpp
-    ResourcePack/ResourcePack.h)
-  target_link_libraries(uicommon PUBLIC cpp-optparse minizip)
-endif()
 
 if ((DEFINED CMAKE_ANDROID_ARCH_ABI AND CMAKE_ANDROID_ARCH_ABI MATCHES "x86|x86_64") OR
     (NOT DEFINED CMAKE_ANDROID_ARCH_ABI AND _M_X86))

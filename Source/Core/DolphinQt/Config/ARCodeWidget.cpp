@@ -1,8 +1,9 @@
 // Copyright 2018 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "DolphinQt/Config/ARCodeWidget.h"
+
+#include <utility>
 
 #include <QButtonGroup>
 #include <QCursor>
@@ -23,25 +24,30 @@
 
 #include "UICommon/GameFile.h"
 
-ARCodeWidget::ARCodeWidget(const UICommon::GameFile& game, bool restart_required)
-    : m_game(game), m_game_id(game.GetGameID()), m_game_revision(game.GetRevision()),
+ARCodeWidget::ARCodeWidget(std::string game_id, u16 game_revision, bool restart_required)
+    : m_game_id(std::move(game_id)), m_game_revision(game_revision),
       m_restart_required(restart_required)
 {
   CreateWidgets();
   ConnectWidgets();
 
-  IniFile game_ini_local;
+  if (!m_game_id.empty())
+  {
+    IniFile game_ini_local;
 
-  // We don't use LoadLocalGameIni() here because user cheat codes that are installed via the UI
-  // will always be stored in GS/${GAMEID}.ini
-  game_ini_local.Load(File::GetUserPath(D_GAMESETTINGS_IDX) + m_game_id + ".ini");
+    // We don't use LoadLocalGameIni() here because user cheat codes that are installed via the UI
+    // will always be stored in GS/${GAMEID}.ini
+    game_ini_local.Load(File::GetUserPath(D_GAMESETTINGS_IDX) + m_game_id + ".ini");
 
-  IniFile game_ini_default = SConfig::GetInstance().LoadDefaultGameIni(m_game_id, m_game_revision);
-  m_ar_codes = ActionReplay::LoadCodes(game_ini_default, game_ini_local);
+    const IniFile game_ini_default = SConfig::LoadDefaultGameIni(m_game_id, m_game_revision);
+    m_ar_codes = ActionReplay::LoadCodes(game_ini_default, game_ini_local);
+  }
 
   UpdateList();
   OnSelectionChanged();
 }
+
+ARCodeWidget::~ARCodeWidget() = default;
 
 void ARCodeWidget::CreateWidgets()
 {
@@ -50,6 +56,11 @@ void ARCodeWidget::CreateWidgets()
   m_code_add = new QPushButton(tr("&Add New Code..."));
   m_code_edit = new QPushButton(tr("&Edit Code..."));
   m_code_remove = new QPushButton(tr("&Remove Code"));
+
+  m_code_list->setEnabled(!m_game_id.empty());
+  m_code_add->setEnabled(!m_game_id.empty());
+  m_code_edit->setEnabled(!m_game_id.empty());
+  m_code_remove->setEnabled(!m_game_id.empty());
 
   m_code_list->setContextMenuPolicy(Qt::CustomContextMenu);
 
@@ -80,14 +91,14 @@ void ARCodeWidget::ConnectWidgets()
   connect(m_code_list, &QListWidget::customContextMenuRequested, this,
           &ARCodeWidget::OnContextMenuRequested);
 
-  connect(m_code_add, &QPushButton::pressed, this, &ARCodeWidget::OnCodeAddPressed);
-  connect(m_code_edit, &QPushButton::pressed, this, &ARCodeWidget::OnCodeEditPressed);
-  connect(m_code_remove, &QPushButton::pressed, this, &ARCodeWidget::OnCodeRemovePressed);
+  connect(m_code_add, &QPushButton::clicked, this, &ARCodeWidget::OnCodeAddClicked);
+  connect(m_code_edit, &QPushButton::clicked, this, &ARCodeWidget::OnCodeEditClicked);
+  connect(m_code_remove, &QPushButton::clicked, this, &ARCodeWidget::OnCodeRemoveClicked);
 }
 
 void ARCodeWidget::OnItemChanged(QListWidgetItem* item)
 {
-  m_ar_codes[m_code_list->row(item)].active = (item->checkState() == Qt::Checked);
+  m_ar_codes[m_code_list->row(item)].enabled = (item->checkState() == Qt::Checked);
 
   if (!m_restart_required)
     ActionReplay::ApplyCodes(m_ar_codes);
@@ -152,12 +163,12 @@ void ARCodeWidget::UpdateList()
   {
     const auto& ar = m_ar_codes[i];
     auto* item = new QListWidgetItem(QString::fromStdString(ar.name)
-                                         .replace(QStringLiteral("&lt;"), QStringLiteral("<"))
-                                         .replace(QStringLiteral("&gt;"), QStringLiteral(">")));
+                                         .replace(QStringLiteral("&lt;"), QChar::fromLatin1('<'))
+                                         .replace(QStringLiteral("&gt;"), QChar::fromLatin1('>')));
 
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsUserCheckable |
                    Qt::ItemIsDragEnabled);
-    item->setCheckState(ar.active ? Qt::Checked : Qt::Unchecked);
+    item->setCheckState(ar.enabled ? Qt::Checked : Qt::Unchecked);
     item->setData(Qt::UserRole, static_cast<int>(i));
 
     m_code_list->addItem(item);
@@ -168,11 +179,16 @@ void ARCodeWidget::UpdateList()
 
 void ARCodeWidget::SaveCodes()
 {
-  IniFile game_ini_local;
-  game_ini_local.Load(File::GetUserPath(D_GAMESETTINGS_IDX) + m_game_id + ".ini");
-  ActionReplay::SaveCodes(&game_ini_local, m_ar_codes);
+  if (m_game_id.empty())
+    return;
 
-  game_ini_local.Save(File::GetUserPath(D_GAMESETTINGS_IDX) + m_game_id + ".ini");
+  const auto ini_path =
+      std::string(File::GetUserPath(D_GAMESETTINGS_IDX)).append(m_game_id).append(".ini");
+
+  IniFile game_ini_local;
+  game_ini_local.Load(ini_path);
+  ActionReplay::SaveCodes(&game_ini_local, m_ar_codes);
+  game_ini_local.Save(ini_path);
 }
 
 void ARCodeWidget::AddCode(ActionReplay::ARCode code)
@@ -183,52 +199,55 @@ void ARCodeWidget::AddCode(ActionReplay::ARCode code)
   SaveCodes();
 }
 
-void ARCodeWidget::OnCodeAddPressed()
+void ARCodeWidget::OnCodeAddClicked()
 {
   ActionReplay::ARCode ar;
-  ar.active = true;
+  ar.enabled = true;
 
   CheatCodeEditor ed(this);
-
   ed.SetARCode(&ar);
+  if (ed.exec() == QDialog::Rejected)
+    return;
 
-  if (ed.exec())
-  {
-    m_ar_codes.push_back(std::move(ar));
+  m_ar_codes.push_back(std::move(ar));
 
-    UpdateList();
-    SaveCodes();
-  }
+  UpdateList();
+  SaveCodes();
 }
 
-void ARCodeWidget::OnCodeEditPressed()
+void ARCodeWidget::OnCodeEditClicked()
 {
-  auto items = m_code_list->selectedItems();
-
+  const auto items = m_code_list->selectedItems();
   if (items.empty())
     return;
 
-  const auto* selected = items[0];
-
+  const auto* const selected = items[0];
   auto& current_ar = m_ar_codes[m_code_list->row(selected)];
 
-  bool user_defined = current_ar.user_defined;
-
-  ActionReplay::ARCode ar = current_ar;
-
   CheatCodeEditor ed(this);
+  if (current_ar.user_defined)
+  {
+    ed.SetARCode(&current_ar);
 
-  ed.SetARCode(user_defined ? &current_ar : &ar);
-  ed.exec();
+    if (ed.exec() == QDialog::Rejected)
+      return;
+  }
+  else
+  {
+    ActionReplay::ARCode ar = current_ar;
+    ed.SetARCode(&ar);
 
-  if (!user_defined)
-    m_ar_codes.push_back(ar);
+    if (ed.exec() == QDialog::Rejected)
+      return;
+
+    m_ar_codes.push_back(std::move(ar));
+  }
 
   SaveCodes();
   UpdateList();
 }
 
-void ARCodeWidget::OnCodeRemovePressed()
+void ARCodeWidget::OnCodeRemoveClicked()
 {
   auto items = m_code_list->selectedItems();
 

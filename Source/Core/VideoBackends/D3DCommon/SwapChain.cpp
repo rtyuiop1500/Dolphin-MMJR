@@ -1,6 +1,5 @@
 // Copyright 2019 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoBackends/D3DCommon/SwapChain.h"
 
@@ -45,13 +44,18 @@ SwapChain::~SwapChain()
     m_swap_chain->SetFullscreenState(FALSE, nullptr);
 }
 
+bool SwapChain::WantsStereo()
+{
+  return false;
+}
+
 u32 SwapChain::GetSwapChainFlags() const
 {
   // This flag is necessary if we want to use a flip-model swapchain without locking the framerate
   return m_allow_tearing_supported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 }
 
-bool SwapChain::CreateSwapChain()
+bool SwapChain::CreateSwapChain(bool stereo)
 {
   RECT client_rc;
   if (GetClientRect(static_cast<HWND>(m_wsi.render_surface), &client_rc))
@@ -59,6 +63,7 @@ bool SwapChain::CreateSwapChain()
     m_width = client_rc.right - client_rc.left;
     m_height = client_rc.bottom - client_rc.top;
   }
+
   // Try using the Win8 version if available.
   Microsoft::WRL::ComPtr<IDXGIFactory2> dxgi_factory2;
   HRESULT hr = m_dxgi_factory.As(&dxgi_factory2);
@@ -76,7 +81,7 @@ bool SwapChain::CreateSwapChain()
     swap_chain_desc.Format = GetDXGIFormatForAbstractFormat(m_texture_format, false);
     swap_chain_desc.Scaling = DXGI_SCALING_STRETCH;
     swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    swap_chain_desc.Stereo = FALSE;
+    swap_chain_desc.Stereo = stereo;
     swap_chain_desc.Flags = GetSwapChainFlags();
 
     Microsoft::WRL::ComPtr<IDXGISwapChain1> swap_chain1;
@@ -120,7 +125,7 @@ bool SwapChain::CreateSwapChain()
 
   if (FAILED(hr))
   {
-    PanicAlert("Failed to create swap chain with HRESULT %08X", hr);
+    PanicAlertFmt("Failed to create swap chain with HRESULT {:08X}", hr);
     return false;
   }
 
@@ -128,11 +133,12 @@ bool SwapChain::CreateSwapChain()
   hr = m_dxgi_factory->MakeWindowAssociation(static_cast<HWND>(m_wsi.render_surface),
                                              DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER);
   if (FAILED(hr))
-    WARN_LOG(VIDEO, "MakeWindowAssociation() failed with HRESULT %08X", hr);
+    WARN_LOG_FMT(VIDEO, "MakeWindowAssociation() failed with HRESULT {:08X}", hr);
 
+  m_stereo = stereo;
   if (!CreateSwapChainBuffers())
   {
-    PanicAlert("Failed to create swap chain buffers");
+    PanicAlertFmt("Failed to create swap chain buffers");
     DestroySwapChainBuffers();
     m_swap_chain.Reset();
     return false;
@@ -160,7 +166,7 @@ bool SwapChain::ResizeSwapChain()
                                            GetDXGIFormatForAbstractFormat(m_texture_format, false),
                                            GetSwapChainFlags());
   if (FAILED(hr))
-    WARN_LOG(VIDEO, "ResizeBuffers() failed with HRESULT %08X", hr);
+    WARN_LOG_FMT(VIDEO, "ResizeBuffers() failed with HRESULT {:08X}", hr);
 
   DXGI_SWAP_CHAIN_DESC desc;
   if (SUCCEEDED(m_swap_chain->GetDesc(&desc)))
@@ -170,6 +176,19 @@ bool SwapChain::ResizeSwapChain()
   }
 
   return CreateSwapChainBuffers();
+}
+
+void SwapChain::SetStereo(bool stereo)
+{
+  if (m_stereo == stereo)
+    return;
+
+  DestroySwapChain();
+  if (!CreateSwapChain(stereo))
+  {
+    PanicAlertFmt("Failed to switch swap chain stereo mode");
+    CreateSwapChain(false);
+  }
 }
 
 bool SwapChain::GetFullscreen() const
@@ -217,7 +236,7 @@ bool SwapChain::Present()
   HRESULT hr = m_swap_chain->Present(static_cast<UINT>(g_ActiveConfig.bVSyncActive), present_flags);
   if (FAILED(hr))
   {
-    WARN_LOG(VIDEO, "Swap chain present failed with HRESULT %08X", hr);
+    WARN_LOG_FMT(VIDEO, "Swap chain present failed with HRESULT {:08X}", hr);
     return false;
   }
 
@@ -228,7 +247,7 @@ bool SwapChain::ChangeSurface(void* native_handle)
 {
   DestroySwapChain();
   m_wsi.render_surface = native_handle;
-  return CreateSwapChain();
+  return CreateSwapChain(m_stereo);
 }
 
 }  // namespace D3DCommon

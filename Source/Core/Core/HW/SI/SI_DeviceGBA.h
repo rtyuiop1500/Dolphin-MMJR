@@ -1,6 +1,5 @@
 // Copyright 2008 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -28,7 +27,8 @@ public:
   bool IsConnected();
   void ClockSync();
   void Send(const u8* si_buffer);
-  int Receive(u8* si_buffer);
+  int Receive(u8* si_buffer, u8 bytes);
+  void Flush();
 
 private:
   void Disconnect();
@@ -45,7 +45,7 @@ class CSIDevice_GBA : public ISIDevice
 public:
   CSIDevice_GBA(SIDevices device, int device_number);
 
-  int RunBuffer(u8* buffer, int length) override;
+  int RunBuffer(u8* buffer, int request_length) override;
   int TransferInterval() override;
   bool GetData(u32& hi, u32& low) override;
   void SendCommand(u32 command, u8 poll) override;
@@ -60,7 +60,7 @@ private:
 
   GBASockServer m_sock_server;
   NextAction m_next_action = NextAction::SendCommand;
-  u8 m_last_cmd;
+  EBufferCommands m_last_cmd = EBufferCommands::CMD_STATUS;
   u64 m_timestamp_sent = 0;
 };
 }  // namespace SerialInterface

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.utils;
 
 import android.content.BroadcastReceiver;
@@ -8,11 +10,6 @@ import org.dolphinemu.dolphinemu.utils.DirectoryInitialization.DirectoryInitiali
 
 public class DirectoryStateReceiver extends BroadcastReceiver
 {
-  public interface Action1<T>
-  {
-    void call(T t);
-  }
-
   Action1<DirectoryInitializationState> callback;
 
   public DirectoryStateReceiver(Action1<DirectoryInitializationState> callback)
@@ -24,7 +21,7 @@ public class DirectoryStateReceiver extends BroadcastReceiver
   public void onReceive(Context context, Intent intent)
   {
     DirectoryInitializationState state = (DirectoryInitializationState) intent
-      .getSerializableExtra(DirectoryInitialization.EXTRA_STATE);
+            .getSerializableExtra(DirectoryInitialization.EXTRA_STATE);
     callback.call(state);
   }
 }

@@ -1,7 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.features.settings.ui.viewholder;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.view.View;
 import android.widget.TextView;
+
+import androidx.annotation.Nullable;
 
 import org.dolphinemu.dolphinemu.R;
 import org.dolphinemu.dolphinemu.features.settings.model.view.InputBindingSetting;
@@ -15,9 +22,13 @@ public final class InputBindingSettingViewHolder extends SettingViewHolder
   private TextView mTextSettingName;
   private TextView mTextSettingDescription;
 
-  public InputBindingSettingViewHolder(View itemView, SettingsAdapter adapter)
+  private Context mContext;
+
+  public InputBindingSettingViewHolder(View itemView, SettingsAdapter adapter, Context context)
   {
     super(itemView, adapter);
+
+    mContext = context;
   }
 
   @Override
@@ -30,14 +41,34 @@ public final class InputBindingSettingViewHolder extends SettingViewHolder
   @Override
   public void bind(SettingsItem item)
   {
+    SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(mContext);
+
     mItem = (InputBindingSetting) item;
-    mTextSettingName.setText(mItem.getNameId());
-    mTextSettingDescription.setText(mItem.getSettingText());
+
+    mTextSettingName.setText(mItem.getName());
+    mTextSettingDescription
+            .setText(sharedPreferences.getString(mItem.getKey() + mItem.getGameId(), ""));
+
+    setStyle(mTextSettingName, mItem);
   }
 
   @Override
   public void onClick(View clicked)
   {
+    if (!mItem.isEditable())
+    {
+      showNotRuntimeEditableError();
+      return;
+    }
+
     getAdapter().onInputBindingClick(mItem, getAdapterPosition());
+
+    setStyle(mTextSettingName, mItem);
+  }
+
+  @Nullable @Override
+  protected SettingsItem getItem()
+  {
+    return mItem;
   }
 }

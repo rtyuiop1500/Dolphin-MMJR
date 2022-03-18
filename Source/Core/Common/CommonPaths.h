@@ -1,6 +1,5 @@
 // Copyright 2008 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -12,7 +11,7 @@
 #define ROOT_DIR "."
 #ifdef _WIN32
 #define USERDATA_DIR "User"
-#define DOLPHIN_DATA_DIR "dolphin-mmjr"
+#define DOLPHIN_DATA_DIR "Dolphin"
 #elif defined __APPLE__
 // On OS X, USERDATA_DIR exists within the .app, but *always* reference
 // the copy in Application Support instead! (Copied on first run)
@@ -21,11 +20,11 @@
 #define DOLPHIN_DATA_DIR "Library/Application Support/Dolphin"
 #elif defined ANDROID
 #define USERDATA_DIR "user"
-#define DOLPHIN_DATA_DIR "/sdcard/dolphin-mmjr"
+#define DOLPHIN_DATA_DIR "/sdcard/dolphin-emu"
 #define NOMEDIA_FILE ".nomedia"
 #else
 #define USERDATA_DIR "user"
-#define DOLPHIN_DATA_DIR "dolphin-mmjr"
+#define DOLPHIN_DATA_DIR "dolphin-emu"
 #endif
 
 // Dirs in both User and Sys
@@ -35,17 +34,20 @@
 
 // Subdirs in the User dir returned by GetUserPath(D_USER_IDX)
 #define GC_USER_DIR "GC"
+#define GBA_USER_DIR "GBA"
 #define WII_USER_DIR "Wii"
 #define CONFIG_DIR "Config"
 #define GAMESETTINGS_DIR "GameSettings"
 #define MAPS_DIR "Maps"
 #define CACHE_DIR "Cache"
 #define COVERCACHE_DIR "GameCovers"
+#define REDUMPCACHE_DIR "Redump"
 #define SHADERCACHE_DIR "Shaders"
 #define STATESAVES_DIR "StateSaves"
 #define SCREENSHOTS_DIR "ScreenShots"
 #define LOAD_DIR "Load"
 #define HIRES_TEXTURES_DIR "Textures"
+#define RIIVOLUTION_DIR "Riivolution"
 #define DUMP_DIR "Dump"
 #define DUMP_TEXTURES_DIR "Textures"
 #define DUMP_FRAMES_DIR "Frames"
@@ -61,11 +63,14 @@
 #define RESOURCES_DIR "Resources"
 #define THEMES_DIR "Themes"
 #define STYLES_DIR "Styles"
+#define GBASAVES_DIR "Saves"
+#define PASSIVE_DIR "Passive"
 #define PIPES_DIR "Pipes"
 #define MEMORYWATCHER_DIR "MemoryWatcher"
 #define WFSROOT_DIR "WFS"
 #define BACKUP_DIR "Backup"
 #define RESOURCEPACK_DIR "ResourcePacks"
+#define DYNAMICINPUT_DIR "DynamicInputTextures"
 
 // This one is only used to remove it if it was present
 #define SHADERCACHE_LEGACY_DIR "ShaderCache"
@@ -82,6 +87,8 @@
 #define GFX_CONFIG "GFX.ini"
 #define DEBUGGER_CONFIG "Debugger.ini"
 #define LOGGER_CONFIG "Logger.ini"
+#define DUALSHOCKUDPCLIENT_CONFIG "DSUClient.ini"
+#define FREELOOK_CONFIG "FreeLook.ini"
 
 // Files in the directory returned by GetUserPath(D_LOGS_IDX)
 #define MAIN_LOG "dolphin.log"
@@ -113,6 +120,9 @@
 #define GC_MEMCARDA "MemoryCardA"
 #define GC_MEMCARDB "MemoryCardB"
 #define GC_MEMCARD_NETPLAY "NetPlayTemp"
+
+#define GBA_BIOS "gba_bios.bin"
+#define GBA_SAVE_NETPLAY "NetPlayTemp"
 
 #define WII_STATE "state.dat"
 

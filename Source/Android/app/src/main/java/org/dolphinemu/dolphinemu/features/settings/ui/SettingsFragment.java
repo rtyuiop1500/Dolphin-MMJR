@@ -1,16 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.features.settings.ui;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
-import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.nononsenseapps.filepicker.DividerItemDecoration;
 
@@ -19,6 +22,8 @@ import org.dolphinemu.dolphinemu.features.settings.model.Settings;
 import org.dolphinemu.dolphinemu.features.settings.model.view.SettingsItem;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class SettingsFragment extends Fragment implements SettingsFragmentView
 {
@@ -26,9 +31,44 @@ public final class SettingsFragment extends Fragment implements SettingsFragment
   private static final String ARGUMENT_GAME_ID = "game_id";
 
   private SettingsFragmentPresenter mPresenter;
-  private ArrayList<SettingsItem> mSettingsList;
-  private SettingsActivity mActivity;
+  private SettingsActivityView mActivity;
+
   private SettingsAdapter mAdapter;
+
+  private static final Map<MenuTag, Integer> titles = new HashMap<>();
+
+  static
+  {
+    titles.put(MenuTag.SETTINGS, R.string.settings);
+    titles.put(MenuTag.CONFIG_GENERAL, R.string.general_submenu);
+    titles.put(MenuTag.CONFIG_INTERFACE, R.string.interface_submenu);
+    titles.put(MenuTag.CONFIG_AUDIO, R.string.audio_submenu);
+    titles.put(MenuTag.CONFIG_PATHS, R.string.paths_submenu);
+    titles.put(MenuTag.CONFIG_GAME_CUBE, R.string.gamecube_submenu);
+    titles.put(MenuTag.CONFIG_WII, R.string.wii_submenu);
+    titles.put(MenuTag.CONFIG_ADVANCED, R.string.advanced_submenu);
+    titles.put(MenuTag.DEBUG, R.string.debug_submenu);
+    titles.put(MenuTag.GRAPHICS, R.string.graphics_settings);
+    titles.put(MenuTag.ENHANCEMENTS, R.string.enhancements_submenu);
+    titles.put(MenuTag.HACKS, R.string.hacks_submenu);
+    titles.put(MenuTag.ADVANCED_GRAPHICS, R.string.advanced_graphics_submenu);
+    titles.put(MenuTag.CONFIG_LOG, R.string.log_submenu);
+    titles.put(MenuTag.GCPAD_TYPE, R.string.gcpad_settings);
+    titles.put(MenuTag.WIIMOTE, R.string.wiimote_settings);
+    titles.put(MenuTag.WIIMOTE_EXTENSION, R.string.wiimote_extensions);
+    titles.put(MenuTag.GCPAD_1, R.string.controller_0);
+    titles.put(MenuTag.GCPAD_2, R.string.controller_1);
+    titles.put(MenuTag.GCPAD_3, R.string.controller_2);
+    titles.put(MenuTag.GCPAD_4, R.string.controller_3);
+    titles.put(MenuTag.WIIMOTE_1, R.string.wiimote_4);
+    titles.put(MenuTag.WIIMOTE_2, R.string.wiimote_5);
+    titles.put(MenuTag.WIIMOTE_3, R.string.wiimote_6);
+    titles.put(MenuTag.WIIMOTE_4, R.string.wiimote_7);
+    titles.put(MenuTag.WIIMOTE_EXTENSION_1, R.string.wiimote_extension_4);
+    titles.put(MenuTag.WIIMOTE_EXTENSION_2, R.string.wiimote_extension_5);
+    titles.put(MenuTag.WIIMOTE_EXTENSION_3, R.string.wiimote_extension_6);
+    titles.put(MenuTag.WIIMOTE_EXTENSION_4, R.string.wiimote_extension_7);
+  }
 
   public static Fragment newInstance(MenuTag menuTag, String gameId, Bundle extras)
   {
@@ -48,14 +88,11 @@ public final class SettingsFragment extends Fragment implements SettingsFragment
   }
 
   @Override
-  public void onAttach(Context context)
+  public void onAttach(@NonNull Context context)
   {
     super.onAttach(context);
 
-    mActivity = (SettingsActivity) context;
-    if(mPresenter == null)
-      mPresenter = new SettingsFragmentPresenter(mActivity);
-    mPresenter.onAttach();
+    mActivity = (SettingsActivityView) context;
   }
 
   @Override
@@ -68,43 +105,42 @@ public final class SettingsFragment extends Fragment implements SettingsFragment
     MenuTag menuTag = (MenuTag) args.getSerializable(ARGUMENT_MENU_TAG);
     String gameId = getArguments().getString(ARGUMENT_GAME_ID);
 
-    mAdapter = new SettingsAdapter(mActivity);
+    mPresenter = new SettingsFragmentPresenter(this, getContext());
+    mAdapter = new SettingsAdapter(this, getContext());
+
     mPresenter.onCreate(menuTag, gameId, args);
   }
 
   @Nullable
   @Override
   public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container,
-    @Nullable Bundle savedInstanceState)
+          @Nullable Bundle savedInstanceState)
   {
     return inflater.inflate(R.layout.fragment_settings, container, false);
   }
 
   @Override
-  public void onViewCreated(View view, @Nullable Bundle savedInstanceState)
+  public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState)
   {
-    //LinearLayoutManager manager = new LinearLayoutManager(mActivity);
-    Drawable lineDivider = mActivity.getDrawable(R.drawable.line_divider);
+    Bundle args = getArguments();
+    MenuTag menuTag = (MenuTag) args.getSerializable(ARGUMENT_MENU_TAG);
+
+    if (titles.containsKey(menuTag))
+    {
+      getActivity().setTitle(titles.get(menuTag));
+    }
+
+    LinearLayoutManager manager = new LinearLayoutManager(getActivity());
+
+    Drawable lineDivider = getContext().getDrawable(R.drawable.line_divider);
     RecyclerView recyclerView = view.findViewById(R.id.list_settings);
 
-    GridLayoutManager mgr = new GridLayoutManager(mActivity, 2);
-    mgr.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup()
-    {
-      @Override public int getSpanSize(int position)
-      {
-        int viewType = mAdapter.getItemViewType(position);
-        if (SettingsItem.TYPE_INPUT_BINDING == viewType &&
-          Settings.SECTION_BINDINGS.equals(mAdapter.getSettingSection(position)))
-          return 1;
-        return 2;
-      }
-    });
-
     recyclerView.setAdapter(mAdapter);
-    recyclerView.setLayoutManager(mgr);
+    recyclerView.setLayoutManager(manager);
     recyclerView.addItemDecoration(new DividerItemDecoration(lineDivider));
 
-    showSettingsList(mActivity.getSettings());
+    SettingsActivityView activity = (SettingsActivityView) getActivity();
+    mPresenter.onViewCreated(menuTag, activity.getSettings());
   }
 
   @Override
@@ -119,21 +155,70 @@ public final class SettingsFragment extends Fragment implements SettingsFragment
     }
   }
 
-  public void showSettingsList(Settings settings)
+  @Override
+  public void onSettingsFileLoaded(
+          org.dolphinemu.dolphinemu.features.settings.model.Settings settings)
   {
-    if(mSettingsList == null && settings != null)
-    {
-      mSettingsList = mPresenter.loadSettingsList(settings);
-    }
-
-    if(mSettingsList != null)
-    {
-      mAdapter.setSettings(mSettingsList);
-    }
+    mPresenter.setSettings(settings);
   }
 
-  public void closeDialog()
+  @Override
+  public void showSettingsList(ArrayList<SettingsItem> settingsList)
   {
-    mAdapter.closeDialog();
+    mAdapter.setSettings(settingsList);
+  }
+
+  @Override
+  public void loadDefaultSettings()
+  {
+    mPresenter.loadDefaultSettings();
+  }
+
+  @Override
+  public SettingsAdapter getAdapter()
+  {
+    return mAdapter;
+  }
+
+  @Override
+  public void loadSubMenu(MenuTag menuKey)
+  {
+    mActivity.showSettingsFragment(menuKey, null, true, getArguments().getString(ARGUMENT_GAME_ID));
+  }
+
+  @Override
+  public void showToastMessage(String message)
+  {
+    mActivity.showToastMessage(message);
+  }
+
+  @Override
+  public Settings getSettings()
+  {
+    return mPresenter.getSettings();
+  }
+
+  @Override
+  public void onSettingChanged()
+  {
+    mActivity.onSettingChanged();
+  }
+
+  @Override
+  public void onGcPadSettingChanged(MenuTag menuTag, int value)
+  {
+    mActivity.onGcPadSettingChanged(menuTag, value);
+  }
+
+  @Override
+  public void onWiimoteSettingChanged(MenuTag menuTag, int value)
+  {
+    mActivity.onWiimoteSettingChanged(menuTag, value);
+  }
+
+  @Override
+  public void onExtensionSettingChanged(MenuTag menuTag, int value)
+  {
+    mActivity.onExtensionSettingChanged(menuTag, value);
   }
 }

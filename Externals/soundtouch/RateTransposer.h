@@ -14,6 +14,13 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 //
+// Last changed  : $Date: 2015-07-26 17:45:48 +0300 (Sun, 26 Jul 2015) $
+// File revision : $Revision: 4 $
+//
+// $Id: RateTransposer.h 225 2015-07-26 14:45:48Z oparviai $
+//
+////////////////////////////////////////////////////////////////////////////////
+//
 // License :
 //
 //  SoundTouch audio processing library
@@ -125,8 +132,20 @@ public:
     RateTransposer();
     virtual ~RateTransposer();
 
+    /// Operator 'new' is overloaded so that it automatically creates a suitable instance 
+    /// depending on if we're to use integer or floating point arithmetics.
+//    static void *operator new(size_t s);
+
+    /// Use this function instead of "new" operator to create a new instance of this class. 
+    /// This function automatically chooses a correct implementation, depending on if 
+    /// integer ot floating point arithmetics are to be used.
+//    static RateTransposer *newInstance();
+
     /// Returns the output buffer object
     FIFOSamplePipe *getOutput() { return &outputBuffer; };
+
+    /// Returns the store buffer object
+//    FIFOSamplePipe *getStore() { return &storeBuffer; };
 
     /// Return anti-alias filter object
     AAFilter *getAAFilter();
@@ -153,9 +172,6 @@ public:
 
     /// Returns nonzero if there aren't any samples available for outputting.
     int isEmpty() const;
-
-    /// Return approximate initial input-output latency
-    int getLatency() const;
 };
 
 }

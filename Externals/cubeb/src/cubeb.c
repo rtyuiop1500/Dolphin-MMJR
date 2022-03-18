@@ -19,12 +19,7 @@ struct cubeb {
 };
 
 struct cubeb_stream {
-  /*
-   * Note: All implementations of cubeb_stream must keep the following
-   * layout.
-   */
   struct cubeb * context;
-  void * user_ptr;
 };
 
 #if defined(USE_PULSE)
@@ -42,9 +37,6 @@ int alsa_init(cubeb ** context, char const * context_name);
 #if defined(USE_AUDIOUNIT)
 int audiounit_init(cubeb ** context, char const * context_name);
 #endif
-#if defined(USE_AUDIOUNIT_RUST)
-int audiounit_rust_init(cubeb ** contet, char const * context_name);
-#endif
 #if defined(USE_WINMM)
 int winmm_init(cubeb ** context, char const * context_name);
 #endif
@@ -53,9 +45,6 @@ int wasapi_init(cubeb ** context, char const * context_name);
 #endif
 #if defined(USE_SNDIO)
 int sndio_init(cubeb ** context, char const * context_name);
-#endif
-#if defined(USE_SUN)
-int sun_init(cubeb ** context, char const * context_name);
 #endif
 #if defined(USE_OPENSL)
 int opensl_init(cubeb ** context, char const * context_name);
@@ -74,7 +63,7 @@ validate_stream_params(cubeb_stream_params * input_stream_params,
   XASSERT(input_stream_params || output_stream_params);
   if (output_stream_params) {
     if (output_stream_params->rate < 1000 || output_stream_params->rate > 192000 ||
-        output_stream_params->channels < 1) {
+        output_stream_params->channels < 1 || output_stream_params->channels > 8) {
       return CUBEB_ERROR_INVALID_FORMAT;
     }
   }
@@ -142,10 +131,6 @@ cubeb_init(cubeb ** context, char const * context_name, char const * backend_nam
 #if defined(USE_AUDIOUNIT)
       init_oneshot = audiounit_init;
 #endif
-    } else if (!strcmp(backend_name, "audiounit-rust")) {
-#if defined(USE_AUDIOUNIT_RUST)
-      init_oneshot = audiounit_rust_init;
-#endif
     } else if (!strcmp(backend_name, "wasapi")) {
 #if defined(USE_WASAPI)
       init_oneshot = wasapi_init;
@@ -157,10 +142,6 @@ cubeb_init(cubeb ** context, char const * context_name, char const * backend_nam
     } else if (!strcmp(backend_name, "sndio")) {
 #if defined(USE_SNDIO)
       init_oneshot = sndio_init;
-#endif
-    } else if (!strcmp(backend_name, "sun")) {
-#if defined(USE_SUN)
-      init_oneshot = sun_init;
 #endif
     } else if (!strcmp(backend_name, "opensl")) {
 #if defined(USE_OPENSL)
@@ -185,9 +166,6 @@ cubeb_init(cubeb ** context, char const * context_name, char const * backend_nam
      * to override all other choices
      */
     init_oneshot,
-#if defined(USE_PULSE_RUST)
-    pulse_rust_init,
-#endif
 #if defined(USE_PULSE)
     pulse_init,
 #endif
@@ -200,9 +178,6 @@ cubeb_init(cubeb ** context, char const * context_name, char const * backend_nam
 #if defined(USE_AUDIOUNIT)
     audiounit_init,
 #endif
-#if defined(USE_AUDIOUNIT_RUST)
-    audiounit_rust_init,
-#endif
 #if defined(USE_WASAPI)
     wasapi_init,
 #endif
@@ -211,9 +186,6 @@ cubeb_init(cubeb ** context, char const * context_name, char const * backend_nam
 #endif
 #if defined(USE_SNDIO)
     sndio_init,
-#endif
-#if defined(USE_SUN)
-    sun_init,
 #endif
 #if defined(USE_OPENSL)
     opensl_init,
@@ -300,6 +272,20 @@ cubeb_get_preferred_sample_rate(cubeb * context, uint32_t * rate)
   return context->ops->get_preferred_sample_rate(context, rate);
 }
 
+int
+cubeb_get_preferred_channel_layout(cubeb * context, cubeb_channel_layout * layout)
+{
+  if (!context || !layout) {
+    return CUBEB_ERROR_INVALID_PARAMETER;
+  }
+
+  if (!context->ops->get_preferred_channel_layout) {
+    return CUBEB_ERROR_NOT_SUPPORTED;
+  }
+
+  return context->ops->get_preferred_channel_layout(context, layout);
+}
+
 void
 cubeb_destroy(cubeb * context)
 {
@@ -323,7 +309,7 @@ cubeb_stream_init(cubeb * context, cubeb_stream ** stream, char const * stream_n
 {
   int r;
 
-  if (!context || !stream || !data_callback || !state_callback) {
+  if (!context || !stream) {
     return CUBEB_ERROR_INVALID_PARAMETER;
   }
 
@@ -487,15 +473,6 @@ int cubeb_stream_register_device_changed_callback(cubeb_stream * stream,
   }
 
   return stream->context->ops->stream_register_device_changed_callback(stream, device_changed_callback);
-}
-
-void * cubeb_stream_user_ptr(cubeb_stream * stream)
-{
-  if (!stream) {
-    return NULL;
-  }
-
-  return stream->user_ptr;
 }
 
 static

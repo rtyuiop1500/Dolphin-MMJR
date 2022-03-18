@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.model;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
@@ -12,32 +15,32 @@ import org.dolphinemu.dolphinemu.utils.DirectoryInitialization;
 
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
+
+import androidx.annotation.Keep;
+
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class GameFile
 {
-  // Do not rename or move without editing the native code
+  @Keep
   private long mPointer;
-  private String mName;
 
+  @Keep
   private GameFile(long pointer)
   {
     mPointer = pointer;
   }
 
-  public String getTitle()
-  {
-    if(mName == null)
-      mName = getName();
-    return mName;
-  }
-
   public native static GameFile parse(String path);
+
+  @Override
+  public native void finalize();
 
   public native int getPlatform();
 
-  public native String getName();
+  public native String getTitle();
 
   public native String getDescription();
 
@@ -49,8 +52,6 @@ public class GameFile
 
   public native String getPath();
 
-  public native String getTitlePath();
-
   public native String getGameId();
 
   public native String getGameTdbId();
@@ -59,49 +60,50 @@ public class GameFile
 
   public native int getRevision();
 
+  public native int getBlobType();
+
+  public native String getFileFormatName();
+
+  public native long getBlockSize();
+
+  public native String getCompressionMethod();
+
+  public native boolean shouldShowFileFormatDetails();
+
+  public native boolean shouldAllowConversion();
+
+  public native long getFileSize();
+
+  public native boolean isDatelDisc();
+
+  public native boolean isNKit();
+
   public native int[] getBanner();
 
   public native int getBannerWidth();
 
   public native int getBannerHeight();
 
-  public String getCoverPath()
+  public String getCoverPath(Context context)
   {
-    return DirectoryInitialization.getCoverDirectory() + File.separator + getGameTdbId() + ".png";
+    return context.getExternalCacheDir().getPath() + "/GameCovers/" + getGameTdbId() + ".png";
   }
 
-  public String getLastSavedState()
+  public String getCustomCoverPath()
   {
-    final int NUM_STATES = 10;
-    final String statePath = DirectoryInitialization.getUserDirectory() + "/StateSaves/";
-    final String gameId = getGameId();
-    long lastModified = 0;
-    String savedState = null;
-    for (int i = 0; i < NUM_STATES; ++i)
-    {
-      String filename = String.format("%s%s.s%02d", statePath, gameId, i);
-      File stateFile = new File(filename);
-      if (stateFile.exists())
-      {
-        if (stateFile.lastModified() > lastModified)
-        {
-          savedState = filename;
-          lastModified = stateFile.lastModified();
-        }
-      }
-    }
-    return savedState;
+    return getPath().substring(0, getPath().lastIndexOf(".")) + ".cover.png";
   }
 
   private static final int COVER_UNKNOWN = 0;
   private static final int COVER_CACHE = 1;
   private static final int COVER_NONE = 2;
   private int mCoverType = COVER_UNKNOWN;
+
   public void loadGameBanner(ImageView imageView)
   {
-    if(mCoverType == COVER_UNKNOWN)
+    if (mCoverType == COVER_UNKNOWN)
     {
-      if(loadFromCache(imageView))
+      if (loadFromCache(imageView))
       {
         mCoverType = COVER_CACHE;
         return;
@@ -113,23 +115,26 @@ public class GameFile
         @Override public void onSuccess()
         {
           mCoverType = COVER_CACHE;
-          CoverHelper.saveCover(((BitmapDrawable) imageView.getDrawable()).getBitmap(), getCoverPath());
+          CoverHelper.saveCover(((BitmapDrawable) imageView.getDrawable()).getBitmap(),
+                  getCoverPath(imageView.getContext()));
         }
+
         @Override public void onError(Exception e)
         {
-          if(loadFromISO(imageView))
+          if (loadFromISO(imageView))
           {
             mCoverType = COVER_CACHE;
           }
-          else if(NativeLibrary.isNetworkConnected(imageView.getContext()))
+          else if (NativeLibrary.isNetworkConnected(imageView.getContext()))
           {
             // save placeholder to file
-            CoverHelper.saveCover(((BitmapDrawable) imageView.getDrawable()).getBitmap(), getCoverPath());
+            CoverHelper.saveCover(((BitmapDrawable) imageView.getDrawable()).getBitmap(),
+                    getCoverPath(imageView.getContext()));
           }
         }
       });
     }
-    else if(mCoverType == COVER_CACHE)
+    else if (mCoverType == COVER_CACHE)
     {
       loadFromCache(imageView);
     }
@@ -141,10 +146,10 @@ public class GameFile
 
   private boolean loadFromCache(ImageView imageView)
   {
-    File file = new File(getCoverPath());
-    if(file.exists())
+    File file = new File(getCoverPath(imageView.getContext()));
+    if (file.exists())
     {
-      imageView.setImageURI(Uri.parse("file://" + getCoverPath()));
+      imageView.setImageURI(Uri.parse("file://" + getCoverPath(imageView.getContext())));
       return true;
     }
     return false;
@@ -153,47 +158,47 @@ public class GameFile
   private void loadFromNetwork(ImageView imageView, Callback callback)
   {
     Picasso.get()
-      .load(CoverHelper.buildGameTDBUrl(this, null))
-      .placeholder(R.drawable.no_banner)
-      .error(R.drawable.no_banner)
-      .into(imageView, new Callback()
-      {
-        @Override
-        public void onSuccess()
-        {
-          callback.onSuccess();
-        }
-
-        @Override
-        public void onError(Exception e)
-        {
-          String id = getGameTdbId();
-          String region = null;
-          if (id.length() < 3)
-          {
-            callback.onError(e);
-            return;
-          }
-          else if(id.charAt(3) != 'E')
-          {
-            region = "US";
-          }
-          else if(id.charAt(3) != 'J')
-          {
-            region = "JA";
-          }
-          else
-          {
-            callback.onError(e);
-            return;
-          }
-          Picasso.get()
-            .load(CoverHelper.buildGameTDBUrl(GameFile.this, region))
+            .load(CoverHelper.buildGameTDBUrl(this, null))
             .placeholder(R.drawable.no_banner)
             .error(R.drawable.no_banner)
-            .into(imageView, callback);
-        }
-      });
+            .into(imageView, new Callback()
+            {
+              @Override
+              public void onSuccess()
+              {
+                callback.onSuccess();
+              }
+
+              @Override
+              public void onError(Exception e)
+              {
+                String id = getGameTdbId();
+                String region = null;
+                if (id.length() < 3)
+                {
+                  callback.onError(e);
+                  return;
+                }
+                else if (id.charAt(3) != 'E')
+                {
+                  region = "US";
+                }
+                else if (id.charAt(3) != 'J')
+                {
+                  region = "JA";
+                }
+                else
+                {
+                  callback.onError(e);
+                  return;
+                }
+                Picasso.get()
+                        .load(CoverHelper.buildGameTDBUrl(GameFile.this, region))
+                        .placeholder(R.drawable.no_banner)
+                        .error(R.drawable.no_banner)
+                        .into(imageView, callback);
+              }
+            });
   }
 
   private boolean loadFromISO(ImageView imageView)
@@ -203,7 +208,7 @@ public class GameFile
     int height = getBannerHeight();
     if (vector.length > 0 && width > 0 && height > 0)
     {
-      File file = new File(getCoverPath());
+      File file = new File(getCoverPath(imageView.getContext()));
       Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
       bitmap.setPixels(vector, 0, width, 0, 0, width, height);
       try

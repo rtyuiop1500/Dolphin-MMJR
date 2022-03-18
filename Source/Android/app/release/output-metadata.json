@@ -4,14 +4,14 @@
     "type": "APK",
     "kind": "Directory"
   },
-  "applicationId": "org.mm.jr",
+  "applicationId": "org.dolphinemu.mmjr",
   "variantName": "release",
   "elements": [
     {
       "type": "SINGLE",
       "filters": [],
-      "versionCode": 25,
-      "versionName": "11485 - bankaimaster999",
+      "versionCode": 17849,
+      "versionName": "5.0-15538",
       "outputFile": "app-release.apk"
     }
   ]

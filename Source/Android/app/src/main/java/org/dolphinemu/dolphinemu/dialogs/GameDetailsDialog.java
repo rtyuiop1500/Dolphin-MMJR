@@ -1,28 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.dialogs;
 
-import android.app.AlertDialog;
 import android.app.Dialog;
-import android.content.Context;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v4.app.DialogFragment;
+import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.DialogFragment;
+
+import com.squareup.picasso.Picasso;
+
+import org.dolphinemu.dolphinemu.NativeLibrary;
 import org.dolphinemu.dolphinemu.R;
-import org.dolphinemu.dolphinemu.activities.EditorActivity;
-import org.dolphinemu.dolphinemu.activities.EmulationActivity;
-import org.dolphinemu.dolphinemu.features.settings.ui.MenuTag;
-import org.dolphinemu.dolphinemu.features.settings.ui.SettingsActivity;
 import org.dolphinemu.dolphinemu.model.GameFile;
-import org.dolphinemu.dolphinemu.services.GameFileCacheService;
-import org.dolphinemu.dolphinemu.utils.DirectoryInitialization;
-
-import java.io.File;
-
+import org.dolphinemu.dolphinemu.services.GameFileCacheManager;
+import org.dolphinemu.dolphinemu.utils.GameBannerRequestHandler;
 
 public final class GameDetailsDialog extends DialogFragment
 {
@@ -39,110 +37,107 @@ public final class GameDetailsDialog extends DialogFragment
     return fragment;
   }
 
-  @NonNull
   @Override
   public Dialog onCreateDialog(Bundle savedInstanceState)
   {
-    final GameFile gameFile =
-      GameFileCacheService.addOrGet(getArguments().getString(ARG_GAME_PATH));
+    GameFile gameFile = GameFileCacheManager.addOrGet(getArguments().getString(ARG_GAME_PATH));
 
-    AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+    AlertDialog.Builder builder = new AlertDialog.Builder(requireActivity(),
+            R.style.DolphinDialogBase);
     ViewGroup contents = (ViewGroup) getActivity().getLayoutInflater()
-      .inflate(R.layout.dialog_game_details, null);
+            .inflate(R.layout.dialog_game_details, null);
 
-    // game title
-    TextView textGameTitle = contents.findViewById(R.id.text_game_title);
-    textGameTitle.setText(gameFile.getTitle());
+    ImageView banner = contents.findViewById(R.id.banner);
 
-    // game filename
-    String gamePath = gameFile.getGameId();
-    if(gameFile.getPlatform() > 0)
+    TextView textTitle = contents.findViewById(R.id.text_game_title);
+    TextView textDescription = contents.findViewById(R.id.text_description);
+
+    TextView textCountry = contents.findViewById(R.id.text_country);
+    TextView textCompany = contents.findViewById(R.id.text_company);
+    TextView textGameId = contents.findViewById(R.id.text_game_id);
+    TextView textRevision = contents.findViewById(R.id.text_revision);
+
+    TextView textFileFormat = contents.findViewById(R.id.text_file_format);
+    TextView textCompression = contents.findViewById(R.id.text_compression);
+    TextView textBlockSize = contents.findViewById(R.id.text_block_size);
+
+    TextView labelFileFormat = contents.findViewById(R.id.label_file_format);
+    TextView labelCompression = contents.findViewById(R.id.label_compression);
+    TextView labelBlockSize = contents.findViewById(R.id.label_block_size);
+
+    String country = getResources().getStringArray(R.array.countryNames)[gameFile.getCountry()];
+    String description = gameFile.getDescription();
+    String fileSize = NativeLibrary.FormatSize(gameFile.getFileSize(), 2);
+
+    textTitle.setText(gameFile.getTitle());
+    textDescription.setText(gameFile.getDescription());
+    if (description.isEmpty())
     {
-      gamePath += ", " + gameFile.getTitlePath();
+      textDescription.setVisibility(View.GONE);
     }
-    TextView textGameFilename = contents.findViewById(R.id.text_game_filename);
-    textGameFilename.setText(gamePath);
 
-    //
-    Button buttonDeleteSetting = contents.findViewById(R.id.button_delete_setting);
-    buttonDeleteSetting.setOnClickListener(view ->
+    textCountry.setText(country);
+    textCompany.setText(gameFile.getCompany());
+    textGameId.setText(gameFile.getGameId());
+    textRevision.setText(String.valueOf(gameFile.getRevision()));
+
+    if (!gameFile.shouldShowFileFormatDetails())
     {
-      this.dismiss();
-      this.deleteGameSetting(getContext(), gameFile.getGameId());
-    });
-    buttonDeleteSetting.setEnabled(isGameSetingExist(gameFile.getGameId()));
+      labelFileFormat.setText(R.string.game_details_file_size);
+      textFileFormat.setText(fileSize);
 
-    Button buttonCheatCode = contents.findViewById(R.id.button_cheat_code);
-    buttonCheatCode.setOnClickListener(view ->
+      labelCompression.setVisibility(View.GONE);
+      textCompression.setVisibility(View.GONE);
+      labelBlockSize.setVisibility(View.GONE);
+      textBlockSize.setVisibility(View.GONE);
+    }
+    else
     {
-      this.dismiss();
-      EditorActivity.launch(getContext(), gameFile.getPath());
-    });
+      long blockSize = gameFile.getBlockSize();
+      String compression = gameFile.getCompressionMethod();
 
-    //
-    Button buttonWiimote = contents.findViewById(R.id.button_wiimote_settings);
-    buttonWiimote.setOnClickListener(view ->
-    {
-      this.dismiss();
-      SettingsActivity.launch(getContext(), MenuTag.WIIMOTE, gameFile.getGameId());
-    });
-    buttonWiimote.setEnabled(gameFile.getPlatform() > 0);
+      textFileFormat.setText(getResources().getString(R.string.game_details_size_and_format,
+              gameFile.getFileFormatName(), fileSize));
 
-    Button buttonGCPad = contents.findViewById(R.id.button_gcpad_settings);
-    buttonGCPad.setOnClickListener(view ->
-    {
-      this.dismiss();
-      SettingsActivity.launch(getContext(), MenuTag.GCPAD_TYPE, gameFile.getGameId());
-    });
+      if (compression.isEmpty())
+      {
+        textCompression.setText(R.string.game_details_no_compression);
+      }
+      else
+      {
+        textCompression.setText(gameFile.getCompressionMethod());
+      }
 
-    //
-    Button buttonGameSetting = contents.findViewById(R.id.button_game_setting);
-    buttonGameSetting.setOnClickListener(view ->
-    {
-      this.dismiss();
-      SettingsActivity.launch(getContext(), MenuTag.CONFIG, gameFile.getGameId());
-    });
+      if (blockSize > 0)
+      {
+        textBlockSize.setText(NativeLibrary.FormatSize(blockSize, 0));
+      }
+      else
+      {
+        labelBlockSize.setVisibility(View.GONE);
+        textBlockSize.setVisibility(View.GONE);
+      }
+    }
 
-    Button buttonLaunch = contents.findViewById(R.id.button_quick_load);
-    buttonLaunch.setOnClickListener(view ->
-    {
-      this.dismiss();
-      EmulationActivity.launch(getContext(), gameFile, gameFile.getLastSavedState());
-    });
-
-    ImageView imageGameScreen = contents.findViewById(R.id.image_game_screen);
-    gameFile.loadGameBanner(imageGameScreen);
+    loadGameBanner(banner, gameFile);
 
     builder.setView(contents);
     return builder.create();
   }
 
-  private boolean isGameSetingExist(String gameId)
+  private static void loadGameBanner(ImageView imageView, GameFile gameFile)
   {
-    String path = DirectoryInitialization.getUserDirectory() + "/GameSettings/" + gameId + ".ini";
-    File gameSettingsFile = new File(path);
-    return gameSettingsFile.exists();
-  }
+    Picasso picassoInstance = new Picasso.Builder(imageView.getContext())
+            .addRequestHandler(new GameBannerRequestHandler(gameFile))
+            .build();
 
-  private void deleteGameSetting(Context context, String gameId)
-  {
-    String path = DirectoryInitialization.getUserDirectory() + "/GameSettings/" + gameId + ".ini";
-    File gameSettingsFile = new File(path);
-    if (gameSettingsFile.exists())
-    {
-      if (gameSettingsFile.delete())
-      {
-        Toast.makeText(context, "Cleared settings for " + gameId, Toast.LENGTH_SHORT).show();
-      }
-      else
-      {
-        Toast.makeText(context, "Unable to clear settings for " + gameId, Toast.LENGTH_SHORT)
-          .show();
-      }
-    }
-    else
-    {
-      Toast.makeText(context, "No game settings to delete", Toast.LENGTH_SHORT).show();
-    }
+    picassoInstance
+            .load(Uri.parse("iso:/" + gameFile.getPath()))
+            .fit()
+            .noFade()
+            .noPlaceholder()
+            .config(Bitmap.Config.RGB_565)
+            .error(R.drawable.no_banner)
+            .into(imageView);
   }
 }

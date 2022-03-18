@@ -1,6 +1,5 @@
 // Copyright 2016 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoBackends/Vulkan/CommandBufferManager.h"
 
@@ -276,17 +275,16 @@ void CommandBufferManager::SubmitCommandBuffer(bool submit_on_worker_thread,
                                                uint32_t present_image_index)
 {
   // End the current command buffer.
-    FrameResources& resources = m_frame_resources[m_current_frame];
-    for (VkCommandBuffer command_buffer : resources.command_buffers)
+  FrameResources& resources = m_frame_resources[m_current_frame];
+  for (VkCommandBuffer command_buffer : resources.command_buffers)
+  {
+    VkResult res = vkEndCommandBuffer(command_buffer);
+    if (res != VK_SUCCESS)
     {
-        VkResult res = vkEndCommandBuffer(command_buffer);
-        if (res != VK_SUCCESS)
-        {
-            LOG_VULKAN_ERROR(res, "vkEndCommandBuffer failed: ");
-            PanicAlert("Failed to end command buffer");
-        }
+      LOG_VULKAN_ERROR(res, "vkEndCommandBuffer failed: ");
+      PanicAlertFmt("Failed to end command buffer");
     }
-
+  }
 
   // Grab the semaphore before submitting command buffer either on-thread or off-thread.
   // This prevents a race from occurring where a second command buffer is executed
@@ -356,11 +354,11 @@ void CommandBufferManager::SubmitCommandBuffer(u32 command_buffer_index,
 
   VkResult res =
       vkQueueSubmit(g_vulkan_context->GetGraphicsQueue(), 1, &submit_info, resources.fence);
-    if (res != VK_SUCCESS)
-    {
-        LOG_VULKAN_ERROR(res, "vkQueueSubmit failed: ");
-        PanicAlert("Failed to submit command buffer.");
-    }
+  if (res != VK_SUCCESS)
+  {
+    LOG_VULKAN_ERROR(res, "vkQueueSubmit failed: ");
+    PanicAlertFmt("Failed to submit command buffer.");
+  }
 
   // Do we have a swap chain to present?
   if (present_swap_chain != VK_NULL_HANDLE)
@@ -380,7 +378,8 @@ void CommandBufferManager::SubmitCommandBuffer(u32 command_buffer_index,
     {
       // VK_ERROR_OUT_OF_DATE_KHR is not fatal, just means we need to recreate our swap chain.
       if (m_last_present_result != VK_ERROR_OUT_OF_DATE_KHR &&
-          m_last_present_result != VK_SUBOPTIMAL_KHR);
+          m_last_present_result != VK_SUBOPTIMAL_KHR &&
+          m_last_present_result != VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT)
       {
         LOG_VULKAN_ERROR(m_last_present_result, "vkQueuePresentKHR failed: ");
       }

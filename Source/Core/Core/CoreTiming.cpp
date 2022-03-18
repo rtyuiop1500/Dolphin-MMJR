@@ -1,22 +1,20 @@
 // Copyright 2008 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/CoreTiming.h"
 
 #include <algorithm>
-#include <cinttypes>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include <fmt/format.h>
+
 #include "Common/Assert.h"
 #include "Common/ChunkFile.h"
 #include "Common/Logging/Log.h"
 #include "Common/SPSCQueue.h"
-#include "Common/StringUtil.h"
-#include "Common/Thread.h"
 
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
@@ -142,7 +140,7 @@ void Init()
 
 void Shutdown()
 {
-  std::lock_guard<std::mutex> lk(s_ts_write_lock);
+  std::lock_guard lk(s_ts_write_lock);
   MoveEvents();
   ClearPendingEvents();
   UnregisterAllEvents();
@@ -150,7 +148,7 @@ void Shutdown()
 
 void DoState(PointerWrap& p)
 {
-  std::lock_guard<std::mutex> lk(s_ts_write_lock);
+  std::lock_guard lk(s_ts_write_lock);
   p.Do(g.slice_length);
   p.Do(g.global_timer);
   p.Do(s_idled_cycles);
@@ -189,9 +187,9 @@ void DoState(PointerWrap& p)
       }
       else
       {
-        WARN_LOG(POWERPC,
-                 "Lost event from savestate because its type, \"%s\", has not been registered.",
-                 name.c_str());
+        WARN_LOG_FMT(POWERPC,
+                     "Lost event from savestate because its type, \"{}\", has not been registered.",
+                     name);
         ev.type = s_ev_lost;
       }
     }
@@ -260,13 +258,13 @@ void ScheduleEvent(s64 cycles_into_future, EventType* event_type, u64 userdata, 
   {
     if (Core::WantsDeterminism())
     {
-      ERROR_LOG(POWERPC,
-                "Someone scheduled an off-thread \"%s\" event while netplay or "
-                "movie play/record was active.  This is likely to cause a desync.",
-                event_type->name->c_str());
+      ERROR_LOG_FMT(POWERPC,
+                    "Someone scheduled an off-thread \"{}\" event while netplay or "
+                    "movie play/record was active.  This is likely to cause a desync.",
+                    *event_type->name);
     }
 
-    std::lock_guard<std::mutex> lk(s_ts_write_lock);
+    std::lock_guard lk(s_ts_write_lock);
     s_ts_queue.Push(Event{g.global_timer + cycles_into_future, 0, userdata, event_type});
   }
 }
@@ -324,24 +322,22 @@ void Advance()
 
   s_is_global_timer_sane = true;
 
-  while (!s_event_queue.empty())
+  while (!s_event_queue.empty() && s_event_queue.front().time <= g.global_timer)
   {
-    Event evt = s_event_queue.front();
-    if (evt.time <= g.global_timer)
-    {
-      std::pop_heap(s_event_queue.begin(), s_event_queue.end(), std::greater<Event>());
-      s_event_queue.pop_back();
-      evt.type->callback(evt.userdata, g.global_timer - evt.time);
-    }
-    else
-    {
-      // Still events left (scheduled in the future)
-      g.slice_length = static_cast<int>(std::min<s64>(evt.time - g.global_timer, MAX_SLICE_LENGTH));
-      break;
-    }
+    Event evt = std::move(s_event_queue.front());
+    std::pop_heap(s_event_queue.begin(), s_event_queue.end(), std::greater<Event>());
+    s_event_queue.pop_back();
+    evt.type->callback(evt.userdata, g.global_timer - evt.time);
   }
 
   s_is_global_timer_sane = false;
+
+  // Still events left (scheduled in the future)
+  if (!s_event_queue.empty())
+  {
+    g.slice_length = static_cast<int>(
+        std::min<s64>(s_event_queue.front().time - g.global_timer, MAX_SLICE_LENGTH));
+  }
 
   PowerPC::ppcState.downcount = CyclesToDowncount(g.slice_length);
 
@@ -358,8 +354,8 @@ void LogPendingEvents()
   std::sort(clone.begin(), clone.end());
   for (const Event& ev : clone)
   {
-    INFO_LOG(POWERPC, "PENDING: Now: %" PRId64 " Pending: %" PRId64 " Type: %s", g.global_timer,
-             ev.time, ev.type->name->c_str());
+    INFO_LOG_FMT(POWERPC, "PENDING: Now: {} Pending: {} Type: {}", g.global_timer, ev.time,
+                 *ev.type->name);
   }
 }
 
@@ -383,6 +379,7 @@ void Idle()
     Fifo::FlushGpu();
   }
 
+  PowerPC::UpdatePerformanceMonitor(PowerPC::ppcState.downcount, 0, 0);
   s_idled_cycles += DowncountToCycles(PowerPC::ppcState.downcount);
   PowerPC::ppcState.downcount = 0;
 }
@@ -396,8 +393,7 @@ std::string GetScheduledEventsSummary()
   std::sort(clone.begin(), clone.end());
   for (const Event& ev : clone)
   {
-    text += StringFromFormat("%s : %" PRIi64 " %016" PRIx64 "\n", ev.type->name->c_str(), ev.time,
-                             ev.userdata);
+    text += fmt::format("{} : {} {:016x}\n", *ev.type->name, ev.time, ev.userdata);
   }
   return text;
 }

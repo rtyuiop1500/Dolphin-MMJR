@@ -1,6 +1,5 @@
 // Copyright 2018 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -8,52 +7,72 @@
 
 namespace IDCache
 {
-
-struct NativeLibrary
-{
-  void OnLoad(JNIEnv* env);
-  void OnUnload(JNIEnv* env);
-
-  jclass Clazz;
-  jmethodID DisplayAlertMsg;
-  jmethodID RumbleOutputMethod;
-  jmethodID UpdateWindowSize;
-  jmethodID BindSystemBack;
-  jmethodID GetEmulationContext;
-};
-
-struct IniFile
-{
-    void OnLoad(JNIEnv* env);
-    void OnUnload(JNIEnv* env);
-
-    jclass Clazz;
-    jfieldID Pointer;
-};
-
-struct GameFile
-{
-  void OnLoad(JNIEnv* env);
-  void OnUnload(JNIEnv* env);
-
-  jclass Clazz;
-  jfieldID Pointer;
-  jmethodID Constructor;
-};
-
-struct WiimoteAdapter
-{
-  void OnLoad(JNIEnv* env);
-  void OnUnload(JNIEnv* env);
-
-  jclass Clazz;
-};
-
 JNIEnv* GetEnvForThread();
 
-extern NativeLibrary sNativeLibrary;
-extern IniFile sIniFile;
-extern GameFile sGameFile;
-extern WiimoteAdapter sWiimoteAdapter;
+jclass GetStringClass();
+
+jclass GetNativeLibraryClass();
+jmethodID GetDisplayAlertMsg();
+jmethodID GetDoRumble();
+jmethodID GetUpdateTouchPointer();
+jmethodID GetOnTitleChanged();
+jmethodID GetFinishEmulationActivity();
+
+jclass GetAnalyticsClass();
+jmethodID GetSendAnalyticsReport();
+jmethodID GetAnalyticsValue();
+
+jclass GetGameFileClass();
+jfieldID GetGameFilePointer();
+jmethodID GetGameFileConstructor();
+
+jclass GetGameFileCacheClass();
+jfieldID GetGameFileCachePointer();
+
+jclass GetLinkedHashMapClass();
+jmethodID GetLinkedHashMapInit();
+jmethodID GetLinkedHashMapPut();
+
+jclass GetIniFileClass();
+jfieldID GetIniFilePointer();
+jclass GetIniFileSectionClass();
+jfieldID GetIniFileSectionPointer();
+jmethodID GetIniFileSectionConstructor();
+
+jclass GetCompressCallbackClass();
+jmethodID GetCompressCallbackRun();
+
+jclass GetContentHandlerClass();
+jmethodID GetContentHandlerOpenFd();
+jmethodID GetContentHandlerDelete();
+jmethodID GetContentHandlerGetSizeAndIsDirectory();
+jmethodID GetContentHandlerGetDisplayName();
+jmethodID GetContentHandlerGetChildNames();
+jmethodID GetContentHandlerDoFileSearch();
+
+jclass GetNetworkHelperClass();
+jmethodID GetNetworkHelperGetNetworkIpAddress();
+jmethodID GetNetworkHelperGetNetworkPrefixLength();
+jmethodID GetNetworkHelperGetNetworkGateway();
+
+jmethodID GetBooleanSupplierGet();
+
+jclass GetARCheatClass();
+jfieldID GetARCheatPointer();
+jmethodID GetARCheatConstructor();
+
+jclass GetGeckoCheatClass();
+jfieldID GetGeckoCheatPointer();
+jmethodID GetGeckoCheatConstructor();
+
+jclass GetPatchCheatClass();
+jfieldID GetPatchCheatPointer();
+jmethodID GetPatchCheatConstructor();
+
+jclass GetRiivolutionPatchesClass();
+jfieldID GetRiivolutionPatchesPointer();
+
+jclass GetWiiUpdateCallbackClass();
+jmethodID GetWiiUpdateCallbackFunction();
 
 }  // namespace IDCache

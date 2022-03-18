@@ -1,6 +1,5 @@
 // Copyright 2015 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -8,11 +7,9 @@
 
 namespace Null
 {
-class PerfQuery : public PerfQueryBase
+class PerfQuery final : public PerfQueryBase
 {
 public:
-  PerfQuery() {}
-  ~PerfQuery() override {}
   void EnableQuery(PerfQueryGroup type) override {}
   void DisableQuery(PerfQueryGroup type) override {}
   void ResetQuery() override {}

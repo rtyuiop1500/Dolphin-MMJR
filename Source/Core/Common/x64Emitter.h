@@ -1,6 +1,5 @@
 // Copyright 2008 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 // WARNING - THIS LIBRARY IS NOT THREAD SAFE!!!
 
@@ -20,50 +19,38 @@
 
 namespace Gen
 {
-
-//CF - carry flag
-//  Set on high-order bit carry or borrow; cleared otherwise
-//PF - parity flag
-//  Set if low-order eight bits of result contain an even number of "1" bits; cleared otherwise
-//ZF - zero flags
-//  Set if result is zero; cleared otherwise
-//SF - sign flag
-//  Set equal to high-order bit of result (0 if positive 1 if negative)
-//OF - overflow flag
-//  Set if result is too large a positive number or too small a negative number (excluding sign bit) to fit in destination operand; cleared otherwise
-
 enum CCFlags
 {
-  CC_O = 0, // overflow
-  CC_NO = 1, // not overflow
-  CC_B = 2, // below
-  CC_C = 2, // carry
-  CC_NAE = 2, // not above or equal
-  CC_NB = 3, // not below
-  CC_NC = 3, // not carry
-  CC_AE = 3, // above or equal
-  CC_Z = 4, // zero
-  CC_E = 4, // equal
-  CC_NZ = 5, // not zero
-  CC_NE = 5, // not equal
-  CC_BE = 6, // below or equal
-  CC_NA = 6, // not above
-  CC_NBE = 7, // not below or equal
-  CC_A = 7, // above
-  CC_S = 8, // sign
-  CC_NS = 9, // not sign
-  CC_P = 0xA, // parity
-  CC_PE = 0xA, // parity even
-  CC_NP = 0xB, // not parity
-  CC_PO = 0xB, // parity odd
-  CC_L = 0xC, // less
-  CC_NGE = 0xC, // not greater or equal
-  CC_NL = 0xD, // not less
-  CC_GE = 0xD, // greater or equal
-  CC_LE = 0xE, // less or equal
-  CC_NG = 0xE, // not greater
-  CC_NLE = 0xF, // not less or equal
-  CC_G = 0xF // greater
+  CC_O = 0,
+  CC_NO = 1,
+  CC_B = 2,
+  CC_C = 2,
+  CC_NAE = 2,
+  CC_NB = 3,
+  CC_NC = 3,
+  CC_AE = 3,
+  CC_Z = 4,
+  CC_E = 4,
+  CC_NZ = 5,
+  CC_NE = 5,
+  CC_BE = 6,
+  CC_NA = 6,
+  CC_NBE = 7,
+  CC_A = 7,
+  CC_S = 8,
+  CC_NS = 9,
+  CC_P = 0xA,
+  CC_PE = 0xA,
+  CC_NP = 0xB,
+  CC_PO = 0xB,
+  CC_L = 0xC,
+  CC_NGE = 0xC,
+  CC_NL = 0xD,
+  CC_GE = 0xD,
+  CC_LE = 0xE,
+  CC_NG = 0xE,
+  CC_NLE = 0xF,
+  CC_G = 0xF
 };
 
 enum
@@ -325,11 +312,6 @@ inline u32 PtrOffset(const void* ptr, const void* base = nullptr)
   return (u32)distance;
 }
 
-// usage: int a[]; ARRAY_OFFSET(a,10)
-#define ARRAY_OFFSET(array, index) ((u32)((u64) & (array)[index] - (u64) & (array)[0]))
-// usage: struct {int e;} s; STRUCT_OFFSET(s,e)
-#define STRUCT_OFFSET(str, elem) ((u32)((u64) & (str).elem - (u64) & (str)))
-
 struct FixupBranch
 {
   enum class Type
@@ -346,8 +328,18 @@ class XEmitter
 {
   friend struct OpArg;  // for Write8 etc
 private:
+  // Pointer to memory where code will be emitted to.
   u8* code = nullptr;
+
+  // Pointer past the end of the memory region we're allowed to emit to.
+  // Writes that would reach this memory are refused and will set the m_write_failed flag instead.
+  u8* m_code_end = nullptr;
+
   bool flags_locked = false;
+
+  // Set to true when a write request happens that would write past m_code_end.
+  // Must be cleared with SetCodePtr() afterwards.
+  bool m_write_failed = false;
 
   void CheckFlags();
 
@@ -381,23 +373,22 @@ private:
   void WriteBMI2Op(int size, u8 opPrefix, u16 op, X64Reg regOp1, X64Reg regOp2, const OpArg& arg,
                    int extrabytes = 0);
   void WriteMOVBE(int bits, u8 op, X64Reg regOp, const OpArg& arg);
-  void WriteFloatLoadStore(int bits, FloatOp op, FloatOp op_80b, const OpArg& arg);
   void WriteNormalOp(int bits, NormalOp op, const OpArg& a1, const OpArg& a2);
 
   void ABI_CalculateFrameSize(BitSet32 mask, size_t rsp_alignment, size_t needed_frame_size,
                               size_t* shadowp, size_t* subtractionp, size_t* xmm_offsetp);
 
 protected:
-  inline void Write8(u8 value) { *code++ = value; }
-  inline void Write16(u16 value) { *(u16*)code = (value); code += sizeof(u16); }
-  inline void Write32(u32 value) { *(u32*)code = (value); code += sizeof(u32); }
-  inline void Write64(u64 value) { *(u64*)code = (value); code += sizeof(u64); }
+  void Write8(u8 value);
+  void Write16(u16 value);
+  void Write32(u32 value);
+  void Write64(u64 value);
 
 public:
   XEmitter() = default;
-  explicit XEmitter(u8* code_ptr) : code{code_ptr} {}
+  explicit XEmitter(u8* code_ptr, u8* code_end) : code(code_ptr), m_code_end(code_end) {}
   virtual ~XEmitter() = default;
-  void SetCodePtr(u8* ptr);
+  void SetCodePtr(u8* ptr, u8* end, bool write_failed = false);
   void ReserveCodeSpace(int bytes);
   u8* AlignCodeTo(size_t alignment);
   u8* AlignCode4();
@@ -405,9 +396,16 @@ public:
   u8* AlignCodePage();
   const u8* GetCodePtr() const;
   u8* GetWritableCodePtr();
+  const u8* GetCodeEnd() const;
+  u8* GetWritableCodeEnd();
 
   void LockFlags() { flags_locked = true; }
   void UnlockFlags() { flags_locked = false; }
+
+  // Should be checked after a block of code has been generated to see if the code has been
+  // successfully written to memory. Do not call the generated code when this returns true!
+  bool HasWriteFailed() const { return m_write_failed; }
+
   // Looking for one of these? It's BANNED!! Some instructions are slow on modern CPU
   // INC, DEC, LOOP, LOOPNE, LOOPE, ENTER, LEAVE, XCHG, XLAT, REP MOVSB/MOVSD, REP SCASD + other
   // string instr.,
@@ -509,11 +507,8 @@ public:
 
   // Bit Test
   void BT(int bits, const OpArg& dest, const OpArg& index);
-  // BTS (Bit Test and Set)
   void BTS(int bits, const OpArg& dest, const OpArg& index);
-  // BTR (Bit Test and Reset)
   void BTR(int bits, const OpArg& dest, const OpArg& index);
-  // BTC (Bit Test and Complement)
   void BTC(int bits, const OpArg& dest, const OpArg& index);
 
   // Double-Precision Shift
@@ -583,31 +578,6 @@ public:
   void REPNE();
   void FSOverride();
   void GSOverride();
-
-  // x87
-  enum x87StatusWordBits
-  {
-    x87_InvalidOperation = 0x1,
-    x87_DenormalizedOperand = 0x2,
-    x87_DivisionByZero = 0x4,
-    x87_Overflow = 0x8,
-    x87_Underflow = 0x10,
-    x87_Precision = 0x20,
-    x87_StackFault = 0x40,
-    x87_ErrorSummary = 0x80,
-    x87_C0 = 0x100,
-    x87_C1 = 0x200,
-    x87_C2 = 0x400,
-    x87_TopOfStack = 0x2000 | 0x1000 | 0x800,
-    x87_C3 = 0x4000,
-    x87_FPUBusy = 0x8000,
-  };
-
-  void FLD(int bits, const OpArg& src);
-  void FST(int bits, const OpArg& dest);
-  void FSTP(int bits, const OpArg& dest);
-  void FNSTSW_AX();
-  void FWAIT();
 
   // SSE/SSE2: Floating point arithmetic
   void ADDSS(X64Reg regOp, const OpArg& arg);
@@ -1100,6 +1070,13 @@ public:
   }
 
   template <typename FunctionPointer>
+  void ABI_CallFunctionP(FunctionPointer func, const void* param1)
+  {
+    MOV(64, R(ABI_PARAM1), Imm64(reinterpret_cast<u64>(param1)));
+    ABI_CallFunction(func);
+  }
+
+  template <typename FunctionPointer>
   void ABI_CallFunctionPC(FunctionPointer func, const void* param1, u32 param2)
   {
     MOV(64, R(ABI_PARAM1), Imm64(reinterpret_cast<u64>(param1)));
@@ -1125,11 +1102,29 @@ public:
     ABI_CallFunction(func);
   }
 
+  // Pass a pointer and register as a parameter.
+  template <typename FunctionPointer>
+  void ABI_CallFunctionPR(FunctionPointer func, const void* ptr, X64Reg reg1)
+  {
+    MOV(64, R(ABI_PARAM2), R(reg1));
+    MOV(64, R(ABI_PARAM1), Imm64(reinterpret_cast<u64>(ptr)));
+    ABI_CallFunction(func);
+  }
+
   // Pass two registers as parameters.
   template <typename FunctionPointer>
   void ABI_CallFunctionRR(FunctionPointer func, X64Reg reg1, X64Reg reg2)
   {
     MOVTwo(64, ABI_PARAM1, reg1, 0, ABI_PARAM2, reg2);
+    ABI_CallFunction(func);
+  }
+
+  // Pass a pointer and two registers as parameters.
+  template <typename FunctionPointer>
+  void ABI_CallFunctionPRR(FunctionPointer func, const void* ptr, X64Reg reg1, X64Reg reg2)
+  {
+    MOVTwo(64, ABI_PARAM2, reg1, 0, ABI_PARAM3, reg2);
+    MOV(64, R(ABI_PARAM1), Imm64(reinterpret_cast<u64>(ptr)));
     ABI_CallFunction(func);
   }
 

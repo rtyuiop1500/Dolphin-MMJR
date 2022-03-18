@@ -1,6 +1,5 @@
 // Copyright 2018 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "DolphinQt/ResourcePackManager.h"
 
@@ -33,6 +32,7 @@ void ResourcePackManager::CreateWidgets()
   auto* layout = new QGridLayout;
 
   m_table_widget = new QTableWidget;
+  m_table_widget->setTabKeyNavigation(false);
 
   m_open_directory_button = new QPushButton(tr("Open Directory..."));
   m_change_button = new QPushButton(tr("Install"));
@@ -60,13 +60,13 @@ void ResourcePackManager::CreateWidgets()
 
 void ResourcePackManager::ConnectWidgets()
 {
-  connect(m_open_directory_button, &QPushButton::pressed, this,
+  connect(m_open_directory_button, &QPushButton::clicked, this,
           &ResourcePackManager::OpenResourcePackDir);
-  connect(m_refresh_button, &QPushButton::pressed, this, &ResourcePackManager::Refresh);
-  connect(m_change_button, &QPushButton::pressed, this, &ResourcePackManager::Change);
-  connect(m_remove_button, &QPushButton::pressed, this, &ResourcePackManager::Remove);
-  connect(m_priority_up_button, &QPushButton::pressed, this, &ResourcePackManager::PriorityUp);
-  connect(m_priority_down_button, &QPushButton::pressed, this, &ResourcePackManager::PriorityDown);
+  connect(m_refresh_button, &QPushButton::clicked, this, &ResourcePackManager::Refresh);
+  connect(m_change_button, &QPushButton::clicked, this, &ResourcePackManager::Change);
+  connect(m_remove_button, &QPushButton::clicked, this, &ResourcePackManager::Remove);
+  connect(m_priority_up_button, &QPushButton::clicked, this, &ResourcePackManager::PriorityUp);
+  connect(m_priority_down_button, &QPushButton::clicked, this, &ResourcePackManager::PriorityDown);
 
   connect(m_table_widget, &QTableWidget::itemSelectionChanged, this,
           &ResourcePackManager::SelectionChanged);
@@ -86,8 +86,8 @@ void ResourcePackManager::RepopulateTable()
   m_table_widget->clear();
   m_table_widget->setColumnCount(6);
 
-  m_table_widget->setHorizontalHeaderLabels({QStringLiteral(""), tr("Name"), tr("Version"),
-                                             tr("Description"), tr("Author"), tr("Website")});
+  m_table_widget->setHorizontalHeaderLabels(
+      {QString{}, tr("Name"), tr("Version"), tr("Description"), tr("Author"), tr("Website")});
 
   auto* header = m_table_widget->horizontalHeader();
 
@@ -108,13 +108,14 @@ void ResourcePackManager::RepopulateTable()
   for (int i = 0; i < size; i++)
   {
     const auto& pack = ResourcePack::GetPacks()[size - 1 - i];
-    auto* manifest = pack.GetManifest();
+    const auto* manifest = pack.GetManifest();
+    const auto& authors = manifest->GetAuthors();
 
     auto* logo_item = new QTableWidgetItem;
     auto* name_item = new QTableWidgetItem(QString::fromStdString(manifest->GetName()));
     auto* version_item = new QTableWidgetItem(QString::fromStdString(manifest->GetVersion()));
-    auto* author_item = new QTableWidgetItem(
-        QString::fromStdString(manifest->GetAuthors().value_or("Unknown author")));
+    auto* author_item =
+        new QTableWidgetItem(authors ? QString::fromStdString(*authors) : tr("Unknown author"));
     auto* description_item =
         new QTableWidgetItem(QString::fromStdString(manifest->GetDescription().value_or("")));
     auto* website_item =
@@ -142,7 +143,7 @@ void ResourcePackManager::RepopulateTable()
 
       if (ResourcePack::IsInstalled(pack))
       {
-        item->setBackgroundColor(QColor(Qt::green));
+        item->setBackground(QColor(Qt::green));
 
         auto font = item->font();
         font.setBold(true);
@@ -193,7 +194,7 @@ void ResourcePackManager::Install()
 
   auto& item = ResourcePack::GetPacks()[GetResourcePackIndex(items[0])];
 
-  bool success = item.Install(File::GetUserPath(D_USER_IDX));
+  bool success = item.Install(File::GetUserPath(D_LOAD_IDX));
 
   if (!success)
   {
@@ -214,7 +215,7 @@ void ResourcePackManager::Uninstall()
 
   auto& item = ResourcePack::GetPacks()[GetResourcePackIndex(items[0])];
 
-  bool success = item.Uninstall(File::GetUserPath(D_USER_IDX));
+  bool success = item.Uninstall(File::GetUserPath(D_LOAD_IDX));
 
   if (!success)
   {

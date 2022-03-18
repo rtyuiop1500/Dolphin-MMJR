@@ -1,6 +1,5 @@
 // Copyright 2017 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -10,7 +9,6 @@
 #include <vector>
 
 #include "Common/CommonTypes.h"
-#include "Core/GeckoCode.h"
 
 class CheatWarningWidget;
 class QLabel;
@@ -19,16 +17,18 @@ class QListWidgetItem;
 class QTextEdit;
 class QPushButton;
 
-namespace UICommon
+namespace Gecko
 {
-class GameFile;
+class GeckoCode;
 }
 
 class GeckoCodeWidget : public QWidget
 {
   Q_OBJECT
 public:
-  explicit GeckoCodeWidget(const UICommon::GameFile& game, bool restart_required = true);
+  explicit GeckoCodeWidget(std::string game_id, std::string gametdb_id, u16 game_revision,
+                           bool restart_required = true);
+  ~GeckoCodeWidget() override;
 
 signals:
   void OpenGeneralSettings();
@@ -49,7 +49,6 @@ private:
   void SaveCodes();
   void SortAlphabetically();
 
-  const UICommon::GameFile& m_game;
   std::string m_game_id;
   std::string m_gametdb_id;
   u16 m_game_revision;

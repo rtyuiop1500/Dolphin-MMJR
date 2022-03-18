@@ -1,59 +1,50 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.features.settings.model.view;
 
-import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting;
-import org.dolphinemu.dolphinemu.features.settings.model.Setting;
-import org.dolphinemu.dolphinemu.features.settings.utils.SettingsFile;
+import android.content.Context;
 
-public final class CheckBoxSetting extends SettingsItem
+import org.dolphinemu.dolphinemu.features.settings.model.AbstractBooleanSetting;
+import org.dolphinemu.dolphinemu.features.settings.model.AbstractSetting;
+import org.dolphinemu.dolphinemu.features.settings.model.Settings;
+
+public class CheckBoxSetting extends SettingsItem
 {
-  private boolean mDefaultValue;
+  protected AbstractBooleanSetting mSetting;
 
-  public CheckBoxSetting(String key, String section, int titleId, int descriptionId,
-    boolean defaultValue, Setting setting)
+  public CheckBoxSetting(Context context, AbstractBooleanSetting setting, int titleId,
+          int descriptionId)
   {
-    super(key, section, setting, titleId, descriptionId);
-    mDefaultValue = defaultValue;
+    super(context, titleId, descriptionId);
+    mSetting = setting;
   }
 
-  public boolean isChecked()
+  public CheckBoxSetting(AbstractBooleanSetting setting, CharSequence title,
+          CharSequence description)
   {
-    boolean value = mDefaultValue;
-    if (getSetting() != null)
-    {
-      BooleanSetting setting = (BooleanSetting) getSetting();
-      value = isInvertedSetting() != setting.getValue();
-    }
-    return value;
+    super(title, description);
+    mSetting = setting;
   }
 
-  private boolean isInvertedSetting()
+  public boolean isChecked(Settings settings)
   {
-    return getKey().equals(SettingsFile.KEY_SKIP_EFB)
-      || getKey().equals(SettingsFile.KEY_IGNORE_FORMAT);
+    return mSetting.getBoolean(settings);
   }
 
-  public BooleanSetting setChecked(boolean checked)
+  public void setChecked(Settings settings, boolean checked)
   {
-    if(isInvertedSetting())
-      checked = !checked;
-
-    if (getSetting() == null)
-    {
-      BooleanSetting setting = new BooleanSetting(getKey(), getSection(), checked);
-      setSetting(setting);
-      return setting;
-    }
-    else
-    {
-      BooleanSetting setting = (BooleanSetting) getSetting();
-      setting.setValue(checked);
-      return null;
-    }
+    mSetting.setBoolean(settings, checked);
   }
 
   @Override
   public int getType()
   {
     return TYPE_CHECKBOX;
+  }
+
+  @Override
+  public AbstractSetting getSetting()
+  {
+    return mSetting;
   }
 }

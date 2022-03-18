@@ -145,7 +145,7 @@ bool RasterFont::CreateTexture()
   m_texture = g_renderer->CreateTexture(tex_config);
   if (!m_texture)
   {
-    PanicAlert("Failed to create texture");
+    PanicAlertFmt("Failed to create texture");
     return false;
   }
 
@@ -199,7 +199,7 @@ bool RasterFont::CreatePipeline()
       g_renderer->CreateShaderFromSource(ShaderStage::Vertex, ss.str());
   if (!vertex_shader)
   {
-    PanicAlert("Failed to compile vertex shader");
+    PanicAlertFmt("Failed to compile vertex shader");
     return false;
   }
 
@@ -242,7 +242,7 @@ bool RasterFont::CreatePipeline()
       g_renderer->CreateShaderFromSource(ShaderStage::Pixel, ss.str());
   if (!pixel_shader)
   {
-    PanicAlert("Failed to compile pixel shader");
+    PanicAlertFmt("Failed to compile pixel shader");
     return false;
   }
 
@@ -254,7 +254,7 @@ bool RasterFont::CreatePipeline()
   m_vertex_format = g_renderer->CreateNativeVertexFormat(vdecl);
   if (!m_vertex_format)
   {
-    PanicAlert("Failed to create vertex format");
+    PanicAlertFmt("Failed to create vertex format");
     return false;
   }
 
@@ -267,16 +267,16 @@ bool RasterFont::CreatePipeline()
   pconfig.depth_state = RenderState::GetNoDepthTestingDepthState();
   pconfig.blending_state = RenderState::GetNoBlendingBlendState();
   pconfig.blending_state.blendenable = true;
-  pconfig.blending_state.srcfactor = BlendMode::SRCALPHA;
-  pconfig.blending_state.dstfactor = BlendMode::INVSRCALPHA;
-  pconfig.blending_state.srcfactoralpha = BlendMode::ZERO;
-  pconfig.blending_state.dstfactoralpha = BlendMode::ONE;
+  pconfig.blending_state.srcfactor = SrcBlendFactor::SrcAlpha;
+  pconfig.blending_state.dstfactor = DstBlendFactor::InvSrcAlpha;
+  pconfig.blending_state.srcfactoralpha = SrcBlendFactor::Zero;
+  pconfig.blending_state.dstfactoralpha = DstBlendFactor::One;
   pconfig.framebuffer_state = RenderState::GetColorFramebufferState(m_framebuffer_format);
   pconfig.usage = AbstractPipelineUsage::Utility;
   m_pipeline = g_renderer->CreatePipeline(pconfig);
   if (!m_pipeline)
   {
-    PanicAlert("Failed to create pipeline");
+    PanicAlertFmt("Failed to create pipeline");
     return false;
   }
 
@@ -303,18 +303,17 @@ void RasterFont::Draw(const std::string& text, float start_x, float start_y, u32
   float screen_width = g_renderer->GetBackbufferWidth();
   float screen_height = g_renderer->GetBackbufferHeight();
   float scale = g_renderer->GetBackbufferScale();
-#ifndef ANDROID
-  scale *= 2.0f;
-#endif
+
+  scale *= g_ActiveConfig.fFontScale; // font size
 
   std::vector<float> vertices(text.length() * 6 * 4);
   u32 usage = 0;
   float delta_x = scale * CHARACTER_WIDTH / screen_width;
   float delta_y = scale * CHARACTER_HEIGHT / screen_height;
-  float border_x = scale * 2.0f / screen_width;
-  float border_y = scale * 4.0f / screen_height;
+  float border_x = 2.0f / screen_width;
+  float border_y = 4.0f / screen_height;
   float x = scale * start_x * 2.0f / screen_width - 1.0f;
-  float y = 1.0f - scale * start_y * 2.0f / screen_height;
+  float y = 1.0f - scale * start_y * 1.50f / screen_height;
 
   for (const char& c : text)
   {

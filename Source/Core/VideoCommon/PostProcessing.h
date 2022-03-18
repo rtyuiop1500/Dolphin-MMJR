@@ -1,6 +1,5 @@
 // Copyright 2014 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -32,7 +31,7 @@ public:
       OPTION_INTEGER,
     };
 
-    bool m_bool_value;
+    bool m_bool_value = false;
 
     std::vector<float> m_float_values;
     std::vector<s32> m_integer_values;
@@ -46,11 +45,12 @@ public:
     std::vector<float> m_float_step_values;
     std::vector<s32> m_integer_step_values;
 
-    OptionType m_type;
+    OptionType m_type = OptionType::OPTION_BOOL;
 
     std::string m_gui_name;
     std::string m_option_name;
     std::string m_dependent_option;
+    bool m_dirty = false;
   };
 
   using ConfigMap = std::map<std::string, ConfigurationOption>;
@@ -66,8 +66,11 @@ public:
   void SaveOptionsConfiguration();
   const std::string& GetShader() const { return m_current_shader; }
   const std::string& GetShaderCode() const { return m_current_shader_code; }
+  bool IsDirty() const { return m_any_options_dirty; }
+  void SetDirty(bool dirty) { m_any_options_dirty = dirty; }
   bool HasOptions() const { return m_options.size() > 0; }
   const ConfigMap& GetOptions() const { return m_options; }
+  ConfigMap& GetOptions() { return m_options; }
   const ConfigurationOption& GetOption(const std::string& option) { return m_options[option]; }
   // For updating option's values
   void SetOptionf(const std::string& option, int index, float value);
@@ -75,6 +78,7 @@ public:
   void SetOptionb(const std::string& option, bool value);
 
 private:
+  bool m_any_options_dirty = false;
   std::string m_current_shader;
   std::string m_current_shader_code;
   ConfigMap m_options;
@@ -90,6 +94,7 @@ public:
   virtual ~PostProcessing();
 
   static std::vector<std::string> GetShaderList();
+  static std::vector<std::string> GetPassiveShaderList();
 
   PostProcessingConfiguration* GetConfig() { return &m_config; }
 

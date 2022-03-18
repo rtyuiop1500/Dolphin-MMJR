@@ -1,6 +1,5 @@
 // Copyright 2018 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -15,7 +14,7 @@
 #include <utility>
 
 #include "Common/CommonTypes.h"
-#include "Common/File.h"
+#include "Common/IOFile.h"
 #include "Common/LinearDiskCache.h"
 
 #include "VideoCommon/AbstractPipeline.h"
@@ -32,6 +31,7 @@
 
 class NativeVertexFormat;
 enum class AbstractTextureFormat : u32;
+enum class APIType;
 enum class TextureFormat;
 enum class TLUTFormat;
 
@@ -51,7 +51,7 @@ public:
   void InitializeShaderCache();
 
   // Changes the shader host config. Shaders should be reloaded afterwards.
-  void SetHostConfig(const ShaderHostConfig& host_config) { m_host_config = host_config; }
+  void SetHostConfig(const ShaderHostConfig& host_config) { m_host_config.bits = host_config.bits; }
 
   // Reloads/recreates all shaders and pipelines.
   void Reload();
@@ -76,10 +76,15 @@ public:
     return m_texture_copy_vertex_shader.get();
   }
   const AbstractShader* GetEFBCopyVertexShader() const { return m_efb_copy_vertex_shader.get(); }
+  const AbstractShader* GetTexcoordGeometryShader() const
+  {
+    return m_texcoord_geometry_shader.get();
+  }
   const AbstractShader* GetTextureCopyPixelShader() const
   {
     return m_texture_copy_pixel_shader.get();
   }
+  const AbstractShader* GetColorGeometryShader() const { return m_color_geometry_shader.get(); }
   const AbstractShader* GetColorPixelShader() const { return m_color_pixel_shader.get(); }
 
   // EFB copy to RAM/VRAM pipelines
@@ -89,6 +94,10 @@ public:
 
   // RGBA8 framebuffer copy pipelines
   const AbstractPipeline* GetRGBA8CopyPipeline() const { return m_copy_rgba8_pipeline.get(); }
+  const AbstractPipeline* GetRGBA8StereoCopyPipeline() const
+  {
+    return m_rgba8_stereo_copy_pipeline.get();
+  }
 
   // Palette texture conversion pipelines
   const AbstractPipeline* GetPaletteConversionPipeline(TLUTFormat format);
@@ -121,6 +130,9 @@ private:
   const AbstractShader* CreateGeometryShader(const GeometryShaderUid& uid);
   bool NeedsGeometryShader(const GeometryShaderUid& uid) const;
 
+  // Should we use geometry shaders for EFB copies?
+  bool UseGeometryShaderForEFBCopies() const;
+
   // GX pipeline compiler methods
   AbstractPipelineConfig
   GetGXPipelineConfig(const NativeVertexFormat* vertex_format, const AbstractShader* vertex_shader,
@@ -151,8 +163,7 @@ private:
 
   // Priorities for compiling. The lower the value, the sooner the pipeline is compiled.
   // The shader cache is compiled last, as it is the least likely to be required. On demand
-  // shaders are always compiled before pending ubershaders, as we want to use the ubershader
-  // for as few frames as possible, otherwise we risk framerate drops.
+  // shaders are always compiled.
   enum : u32
   {
     COMPILE_PRIORITY_ONDEMAND_PIPELINE = 100,
@@ -160,7 +171,7 @@ private:
   };
 
   // Configuration bits.
-  APIType m_api_type = APIType::Nothing;
+  APIType m_api_type;
   ShaderHostConfig m_host_config = {};
   std::unique_ptr<AsyncShaderCompiler> m_async_shader_compiler;
 
@@ -168,6 +179,8 @@ private:
   std::unique_ptr<AbstractShader> m_screen_quad_vertex_shader;
   std::unique_ptr<AbstractShader> m_texture_copy_vertex_shader;
   std::unique_ptr<AbstractShader> m_efb_copy_vertex_shader;
+  std::unique_ptr<AbstractShader> m_texcoord_geometry_shader;
+  std::unique_ptr<AbstractShader> m_color_geometry_shader;
   std::unique_ptr<AbstractShader> m_texture_copy_pixel_shader;
   std::unique_ptr<AbstractShader> m_color_pixel_shader;
 
@@ -178,7 +191,7 @@ private:
     struct Shader
     {
       std::unique_ptr<AbstractShader> shader;
-      bool pending;
+      bool pending = false;
     };
     std::map<Uid, Shader> shader_map;
     LinearDiskCache<Uid, u8> disk_cache;
@@ -199,6 +212,7 @@ private:
 
   // Copy pipeline for RGBA8 textures
   std::unique_ptr<AbstractPipeline> m_copy_rgba8_pipeline;
+  std::unique_ptr<AbstractPipeline> m_rgba8_stereo_copy_pipeline;
 
   // Palette conversion pipelines
   std::array<std::unique_ptr<AbstractPipeline>, NUM_PALETTE_CONVERSION_SHADERS>

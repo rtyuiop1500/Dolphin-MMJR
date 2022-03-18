@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.utils;
 
-import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
 import android.os.VibrationEffect;
@@ -8,39 +9,37 @@ import android.os.Vibrator;
 import android.util.SparseArray;
 import android.view.InputDevice;
 
-import org.dolphinemu.dolphinemu.features.settings.model.SettingSection;
+import org.dolphinemu.dolphinemu.activities.EmulationActivity;
+import org.dolphinemu.dolphinemu.features.settings.model.AdHocStringSetting;
+import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting;
 import org.dolphinemu.dolphinemu.features.settings.model.Settings;
-import org.dolphinemu.dolphinemu.features.settings.model.StringSetting;
 import org.dolphinemu.dolphinemu.features.settings.utils.SettingsFile;
 
 public class Rumble
 {
-  private static long lastRumbleTime;
   private static Vibrator phoneVibrator;
-  private static VibrationEffect vibrationEffect;
-  private static SparseArray<Vibrator> emuVibrators;
+  private static final SparseArray<Vibrator> emuVibrators = new SparseArray<>();
 
-  public static void initDeviceRumble()
+  public static void initRumble(EmulationActivity activity)
   {
-    Settings settings = new Settings();
-    settings.loadSettings(null);
-    SettingSection section = settings.getSection(Settings.SECTION_BINDINGS);
+    clear();
 
-    lastRumbleTime = 0;
-    phoneVibrator = null;
-    vibrationEffect = null;
-    emuVibrators = new SparseArray<>();
+    if (BooleanSetting.MAIN_PHONE_RUMBLE.getBooleanGlobal())
+    {
+      setPhoneVibrator(true, activity);
+    }
 
     for (int i = 0; i < 8; i++)
     {
-      StringSetting deviceName =
-              (StringSetting) section.getSetting(SettingsFile.KEY_EMU_RUMBLE + i);
-      if (deviceName != null && !deviceName.getValue().isEmpty())
+      String deviceName = AdHocStringSetting.getStringGlobal(Settings.FILE_DOLPHIN,
+              Settings.SECTION_BINDINGS, SettingsFile.KEY_EMU_RUMBLE + i, "");
+
+      if (!deviceName.isEmpty())
       {
         for (int id : InputDevice.getDeviceIds())
         {
           InputDevice device = InputDevice.getDevice(id);
-          if (deviceName.getValue().equals(device.getDescriptor()))
+          if (deviceName.equals(device.getDescriptor()))
           {
             Vibrator vib = device.getVibrator();
             if (vib != null && vib.hasVibrator())
@@ -51,25 +50,13 @@ public class Rumble
     }
   }
 
-  public static void setPhoneRumble(Activity activity, boolean enable)
+  public static void setPhoneVibrator(boolean set, EmulationActivity activity)
   {
-    if (enable)
+    if (set)
     {
-      if(phoneVibrator != null)
-        return;
-
       Vibrator vib = (Vibrator) activity.getSystemService(Context.VIBRATOR_SERVICE);
       if (vib != null && vib.hasVibrator())
         phoneVibrator = vib;
-
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-      {
-        vibrationEffect = VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE);
-      }
-      else
-      {
-        vibrationEffect = null;
-      }
     }
     else
     {
@@ -77,13 +64,14 @@ public class Rumble
     }
   }
 
+  private static void clear()
+  {
+    phoneVibrator = null;
+    emuVibrators.clear();
+  }
+
   public static void checkRumble(int padId, double state)
   {
-    long currentTime = System.currentTimeMillis();
-    if(currentTime - lastRumbleTime < 100)
-      return;
-    lastRumbleTime = currentTime;
-
     if (phoneVibrator != null)
       doRumble(phoneVibrator);
 
@@ -96,9 +84,9 @@ public class Rumble
     // Check again that it exists and can vibrate
     if (vib != null && vib.hasVibrator())
     {
-      if (vibrationEffect != null)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
       {
-        vib.vibrate(vibrationEffect);
+        vib.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
       }
       else
       {

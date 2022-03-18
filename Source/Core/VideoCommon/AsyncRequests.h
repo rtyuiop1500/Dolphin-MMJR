@@ -1,6 +1,5 @@
 // Copyright 2015 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -13,6 +12,7 @@
 #include "Common/Flag.h"
 
 struct EfbPokeData;
+class PointerWrap;
 
 class AsyncRequests
 {
@@ -28,6 +28,7 @@ public:
       SWAP_EVENT,
       BBOX_READ,
       PERF_QUERY,
+      DO_SAVE_STATE,
     } type;
     u64 time;
 
@@ -64,6 +65,11 @@ public:
       struct
       {
       } perf_query;
+
+      struct
+      {
+        PointerWrap* p;
+      } do_save_state;
     };
   };
 
@@ -72,19 +78,16 @@ public:
   void PullEvents()
   {
     if (!m_empty.IsSet())
-    {
-      DoFlush();
       PullEventsInternal();
-    }
   }
   void PushEvent(const Event& event, bool blocking = false);
+  void WaitForEmptyQueue();
   void SetEnable(bool enable);
   void SetPassthrough(bool enable);
 
   static AsyncRequests* GetInstance() { return &s_singleton; }
 
 private:
-  void DoFlush();
   void PullEventsInternal();
   void HandleEvent(const Event& e);
 

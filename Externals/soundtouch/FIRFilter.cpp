@@ -2,19 +2,20 @@
 ///
 /// General FIR digital filter routines with MMX optimization. 
 ///
-/// Notes : MMX optimized functions reside in a separate, platform-specific file, 
+/// Note : MMX optimized functions reside in a separate, platform-specific file, 
 /// e.g. 'mmx_win.cpp' or 'mmx_gcc.cpp'
-///
-/// This source file contains OpenMP optimizations that allow speeding up the
-/// corss-correlation algorithm by executing it in several threads / CPU cores 
-/// in parallel. See the following article link for more detailed discussion 
-/// about SoundTouch OpenMP optimizations:
-/// http://www.softwarecoven.com/parallel-computing-in-embedded-mobile-devices
 ///
 /// Author        : Copyright (c) Olli Parviainen
 /// Author e-mail : oparviai 'at' iki.fi
 /// SoundTouch WWW: http://www.surina.net/soundtouch
 ///
+////////////////////////////////////////////////////////////////////////////////
+//
+// Last changed  : $Date: 2015-02-21 23:24:29 +0200 (Sat, 21 Feb 2015) $
+// File revision : $Revision: 4 $
+//
+// $Id: FIRFilter.cpp 202 2015-02-21 21:24:29Z oparviai $
+//
 ////////////////////////////////////////////////////////////////////////////////
 //
 // License :
@@ -67,7 +68,6 @@ FIRFilter::~FIRFilter()
 {
     delete[] filterCoeffs;
 }
-
 
 // Usual C-version of the filter routine for stereo sound
 uint FIRFilter::evaluateFilterStereo(SAMPLETYPE *dest, const SAMPLETYPE *src, uint numSamples) const
@@ -125,6 +125,8 @@ uint FIRFilter::evaluateFilterStereo(SAMPLETYPE *dest, const SAMPLETYPE *src, ui
     }
     return numSamples - length;
 }
+
+
 
 
 // Usual C-version of the filter routine for mono sound
@@ -252,6 +254,7 @@ uint FIRFilter::getLength() const
 }
 
 
+
 // Applies the filter to the given sequence of samples. 
 //
 // Note : The amount of outputted samples is by value of 'filter_length' 
@@ -279,6 +282,7 @@ uint FIRFilter::evaluate(SAMPLETYPE *dest, const SAMPLETYPE *src, uint numSample
         return evaluateFilterMulti(dest, src, numSamples, numChannels);
     }
 }
+
 
 
 // Operator 'new' is overloaded so that it automatically creates a suitable instance 

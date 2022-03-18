@@ -1,6 +1,5 @@
 // Copyright 2019 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -8,6 +7,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -23,14 +23,14 @@ struct NetPlaySession
   std::string game_id;
   std::string version;
 
-  int player_count;
-  int port;
+  int player_count = 0;
+  int port = 0;
 
-  bool has_password;
-  bool in_game;
+  bool has_password = false;
+  bool in_game = false;
 
-  bool EncryptID(const std::string& password);
-  std::optional<std::string> DecryptID(const std::string& password) const;
+  bool EncryptID(std::string_view password);
+  std::optional<std::string> DecryptID(std::string_view password) const;
 };
 
 class NetPlayIndex
@@ -44,7 +44,7 @@ public:
 
   static std::vector<std::pair<std::string, std::string>> GetRegions();
 
-  bool Add(NetPlaySession session);
+  bool Add(const NetPlaySession& session);
   void Remove();
 
   bool HasActiveSession() const;

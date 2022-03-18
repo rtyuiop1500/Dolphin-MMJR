@@ -1,113 +1,93 @@
-/**
+/*
  * Copyright 2013 Dolphin Emulator Project
- * Licensed under GPLv2+
- * Refer to the license.txt file included.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 package org.dolphinemu.dolphinemu.overlay;
 
+import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
-import android.os.Handler;
+import android.view.MotionEvent;
 
-import org.dolphinemu.dolphinemu.NativeLibrary;
-
+/**
+ * Custom {@link BitmapDrawable} that is capable
+ * of storing it's own ID.
+ */
 public final class InputOverlayDrawableButton
 {
   // The ID identifying what type of button this Drawable represents.
-  private int mButtonId;
-  private int mPointerId;
-  private int mTiltStatus;
+  private int mButtonType;
+  private int mTrackId;
   private int mPreviousTouchX, mPreviousTouchY;
   private int mControlPositionX, mControlPositionY;
+  private int mWidth;
+  private int mHeight;
   private BitmapDrawable mDefaultStateBitmap;
   private BitmapDrawable mPressedStateBitmap;
-  private Handler mHandler;
+  private boolean mPressedState = false;
 
-  public InputOverlayDrawableButton(BitmapDrawable defaultBitmap, BitmapDrawable pressedBitmap, int buttonId)
+  /**
+   * Constructor
+   *
+   * @param res                {@link Resources} instance.
+   * @param defaultStateBitmap {@link Bitmap} to use with the default state Drawable.
+   * @param pressedStateBitmap {@link Bitmap} to use with the pressed state Drawable.
+   * @param buttonType         Identifier for this type of button.
+   */
+  public InputOverlayDrawableButton(Resources res, Bitmap defaultStateBitmap,
+          Bitmap pressedStateBitmap, int buttonType)
   {
-    mPointerId = -1;
-    mTiltStatus = 0;
-    mButtonId = buttonId;
-    mDefaultStateBitmap = defaultBitmap;
-    mPressedStateBitmap = pressedBitmap;
+    mTrackId = -1;
+    mDefaultStateBitmap = new BitmapDrawable(res, defaultStateBitmap);
+    mPressedStateBitmap = new BitmapDrawable(res, pressedStateBitmap);
+    mButtonType = buttonType;
 
-    // input hack
-    if (mButtonId == InputOverlay.sInputHackForRK4)
+    mWidth = mDefaultStateBitmap.getIntrinsicWidth();
+    mHeight = mDefaultStateBitmap.getIntrinsicHeight();
+  }
+
+  /**
+   * Gets this InputOverlayDrawableButton's button ID.
+   *
+   * @return this InputOverlayDrawableButton's button ID.
+   */
+  public int getId()
+  {
+    return mButtonType;
+  }
+
+  public void setTrackId(int trackId)
+  {
+    mTrackId = trackId;
+  }
+
+  public int getTrackId()
+  {
+    return mTrackId;
+  }
+
+  public void onConfigureTouch(MotionEvent event)
+  {
+    int pointerIndex = event.getActionIndex();
+    int fingerPositionX = (int) event.getX(pointerIndex);
+    int fingerPositionY = (int) event.getY(pointerIndex);
+    switch (event.getAction())
     {
-      mHandler = new Handler();
-    }
-  }
-
-  public int getButtonId()
-  {
-    return mButtonId;
-  }
-
-  public int getPointerId()
-  {
-    return mPointerId;
-  }
-
-  public void onConfigureBegin(int x, int y)
-  {
-    mPreviousTouchX = x;
-    mPreviousTouchY = y;
-  }
-
-  public void onConfigureMove(int x, int y)
-  {
-    Rect bounds = getBounds();
-    mControlPositionX += x - mPreviousTouchX;
-    mControlPositionY += y - mPreviousTouchY;
-    setBounds(new Rect(mControlPositionX, mControlPositionY,
-      mControlPositionX + bounds.width(), mControlPositionY + bounds.height()));
-    mPreviousTouchX = x;
-    mPreviousTouchY = y;
-  }
-
-  public void onDraw(Canvas canvas)
-  {
-    getCurrentStateBitmapDrawable().draw(canvas);
-  }
-
-  public void onPointerDown(int id, float x, float y)
-  {
-    mPointerId = id;
-    if (mButtonId == NativeLibrary.ButtonType.WIIMOTE_TILT_TOGGLE)
-    {
-      float[] valueList = {0.5f, 1.0f, 0.0f};
-      float value = valueList[mTiltStatus];
-      mTiltStatus = (mTiltStatus + 1) % valueList.length;
-      NativeLibrary.onGamePadMoveEvent(NativeLibrary.TouchScreenDevice, NativeLibrary.ButtonType.WIIMOTE_TILT + 1, value);
-      NativeLibrary.onGamePadMoveEvent(NativeLibrary.TouchScreenDevice, NativeLibrary.ButtonType.WIIMOTE_TILT + 2, value);
-      NativeLibrary.onGamePadMoveEvent(NativeLibrary.TouchScreenDevice, NativeLibrary.ButtonType.WIIMOTE_TILT + 3, 0);
-      NativeLibrary.onGamePadMoveEvent(NativeLibrary.TouchScreenDevice, NativeLibrary.ButtonType.WIIMOTE_TILT + 4, 0);
-    }
-    else
-    {
-      NativeLibrary.onGamePadEvent(NativeLibrary.TouchScreenDevice, mButtonId, NativeLibrary.ButtonState.PRESSED);
-    }
-  }
-
-  public void onPointerMove(int id, float x, float y)
-  {
-  }
-
-  public void onPointerUp(int id, float x, float y)
-  {
-    mPointerId = -1;
-    if (mButtonId != NativeLibrary.ButtonType.WIIMOTE_TILT_TOGGLE)
-    {
-      NativeLibrary.onGamePadEvent(NativeLibrary.TouchScreenDevice, mButtonId, NativeLibrary.ButtonState.RELEASED);
-      if (mButtonId == InputOverlay.sInputHackForRK4)
-      {
-        mHandler.postDelayed(() -> {
-          NativeLibrary.onGamePadMoveEvent(NativeLibrary.TouchScreenDevice, NativeLibrary.ButtonType.WIIMOTE_SHAKE_X + 2, 1);
-          mHandler.postDelayed(() -> NativeLibrary.onGamePadMoveEvent(NativeLibrary.TouchScreenDevice, NativeLibrary.ButtonType.WIIMOTE_SHAKE_X + 2, 0), 60);
-          }, 120);
-      }
+      case MotionEvent.ACTION_DOWN:
+        mPreviousTouchX = fingerPositionX;
+        mPreviousTouchY = fingerPositionY;
+        break;
+      case MotionEvent.ACTION_MOVE:
+        mControlPositionX += fingerPositionX - mPreviousTouchX;
+        mControlPositionY += fingerPositionY - mPreviousTouchY;
+        setBounds(mControlPositionX, mControlPositionY, getWidth() + mControlPositionX,
+                getHeight() + mControlPositionY);
+        mPreviousTouchX = fingerPositionX;
+        mPreviousTouchY = fingerPositionY;
+        break;
     }
   }
 
@@ -117,24 +97,45 @@ public final class InputOverlayDrawableButton
     mControlPositionY = y;
   }
 
+  public void draw(Canvas canvas)
+  {
+    getCurrentStateBitmapDrawable().draw(canvas);
+  }
+
   private BitmapDrawable getCurrentStateBitmapDrawable()
   {
-    return mPointerId != -1 ? mPressedStateBitmap : mDefaultStateBitmap;
+    return mPressedState ? mPressedStateBitmap : mDefaultStateBitmap;
   }
 
-  public void setBounds(Rect bounds)
+  public void setBounds(int left, int top, int right, int bottom)
   {
-    mDefaultStateBitmap.setBounds(bounds);
-    mPressedStateBitmap.setBounds(bounds);
+    mDefaultStateBitmap.setBounds(left, top, right, bottom);
+    mPressedStateBitmap.setBounds(left, top, right, bottom);
   }
 
-  public void setAlpha(int value)
+  public void setOpacity(int value)
   {
     mDefaultStateBitmap.setAlpha(value);
+    mPressedStateBitmap.setAlpha(value);
   }
 
   public Rect getBounds()
   {
     return mDefaultStateBitmap.getBounds();
+  }
+
+  public int getWidth()
+  {
+    return mWidth;
+  }
+
+  public int getHeight()
+  {
+    return mHeight;
+  }
+
+  public void setPressedState(boolean isPressed)
+  {
+    mPressedState = isPressed;
   }
 }

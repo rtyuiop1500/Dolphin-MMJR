@@ -1,10 +1,10 @@
 // Copyright 2008 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#include "VideoCommon/Statistics.h"
 
 #include <utility>
 
-#include "VideoCommon/Statistics.h"
 #include "VideoCommon/VideoCommon.h"
 #include "VideoCommon/VideoConfig.h"
 
@@ -25,11 +25,9 @@ void Statistics::SwapDL()
 
 void Statistics::Display() const
 {
-
 }
 
 // Is this really needed?
 void Statistics::DisplayProj() const
 {
-
 }

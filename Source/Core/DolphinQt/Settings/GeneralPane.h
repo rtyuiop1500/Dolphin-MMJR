@@ -1,10 +1,7 @@
 // Copyright 2017 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
-
-#include <vector>
 
 #include <QWidget>
 
@@ -32,7 +29,7 @@ private:
   void ConnectLayout();
   void CreateBasic();
   void CreateAutoUpdate();
-  void CreateAdvanced();
+  void CreateFallbackRegion();
 
   void LoadConfig();
   void OnSaveConfig();
@@ -42,15 +39,15 @@ private:
   QVBoxLayout* m_main_layout;
   QComboBox* m_combobox_speedlimit;
   QComboBox* m_combobox_update_track;
+  QComboBox* m_combobox_fallback_region;
   QCheckBox* m_checkbox_dualcore;
   QCheckBox* m_checkbox_cheats;
+  QCheckBox* m_checkbox_override_region_settings;
   QCheckBox* m_checkbox_auto_disc_change;
 #ifdef USE_DISCORD_PRESENCE
   QCheckBox* m_checkbox_discord_presence;
 #endif
   QLabel* m_label_speedlimit;
-
-  std::vector<QRadioButton*> m_cpu_cores;
 
 // Analytics related
 #if defined(USE_ANALYTICS) && USE_ANALYTICS

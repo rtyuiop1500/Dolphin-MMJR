@@ -1,6 +1,5 @@
 // Copyright 2008 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoCommon/VertexShaderManager.h"
 
@@ -12,13 +11,16 @@
 #include "Common/BitSet.h"
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
+#include "Common/Config/Config.h"
 #include "Common/Logging/Log.h"
 #include "Common/Matrix.h"
+#include "Core/Config/GraphicsSettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "VideoCommon/BPFunctions.h"
 #include "VideoCommon/BPMemory.h"
 #include "VideoCommon/CPMemory.h"
+#include "VideoCommon/FreeLookCamera.h"
 #include "VideoCommon/RenderBase.h"
 #include "VideoCommon/Statistics.h"
 #include "VideoCommon/VertexManagerBase.h"
@@ -43,23 +45,8 @@ static std::array<int, 2> nPostTransformMatricesChanged;  // min,max
 static std::array<int, 2> nLightsChanged;                 // min,max
 
 static Common::Matrix44 s_viewportCorrection;
-static Common::Matrix44 s_freelook_matrix;
 
 VertexShaderConstants VertexShaderManager::constants;
-using uint4 = std::array<u32, 4>;
-static struct ConstantsPaddingBefore
-{
-  u32 components;           // .x
-  u32 xfmem_dualTexInfo;    // .y
-  u32 xfmem_numColorChans;  // .z
-  u32 pad1;                 // .w
-} StatePaddingBefore{};
-static struct ConstantsPaddingAfter
-{
-  std::array<float, 2> pad2;
-  std::array<uint4, 8> xfmem_pack1;
-} StatePaddingAfter{};
-
 bool VertexShaderManager::dirty;
 
 // Viewport correction:
@@ -129,7 +116,6 @@ void VertexShaderManager::Init()
 
   std::memset(static_cast<void*>(&xfmem), 0, sizeof(xfmem));
   constants = {};
-  ResetView();
 
   // TODO: should these go inside ResetView()?
   s_viewportCorrection = Common::Matrix44::Identity();
@@ -151,6 +137,18 @@ void VertexShaderManager::Dirty()
 // TODO: A cleaner way to control the matrices without making a mess in the parameters field
 void VertexShaderManager::SetConstants()
 {
+  if (constants.missing_color_hex != g_ActiveConfig.iMissingColorValue)
+  {
+    const float a = (g_ActiveConfig.iMissingColorValue) & 0xFF;
+    const float b = (g_ActiveConfig.iMissingColorValue >> 8) & 0xFF;
+    const float g = (g_ActiveConfig.iMissingColorValue >> 16) & 0xFF;
+    const float r = (g_ActiveConfig.iMissingColorValue >> 24) & 0xFF;
+    constants.missing_color_hex = g_ActiveConfig.iMissingColorValue;
+    constants.missing_color_value = {r / 255, g / 255, b / 255, a / 255};
+
+    dirty = true;
+  }
+
   if (nTransformMatricesChanged[0] >= 0)
   {
     int startn = nTransformMatricesChanged[0] / 4;
@@ -360,7 +358,7 @@ void VertexShaderManager::SetConstants()
     }
   }
 
-  if (bProjectionChanged)
+  if (bProjectionChanged || g_freelook_camera.GetController()->IsDirty())
   {
     bProjectionChanged = false;
 
@@ -368,15 +366,23 @@ void VertexShaderManager::SetConstants()
 
     switch (xfmem.projection.type)
     {
-    case GX_PERSPECTIVE:
-      g_fProjectionMatrix[0] = rawProjection[0] * g_ActiveConfig.fAspectRatioHackW;
+    case ProjectionType::Perspective:
+    {
+      const Common::Vec2 fov_multiplier = g_freelook_camera.IsActive() ?
+                                              g_freelook_camera.GetFieldOfViewMultiplier() :
+                                              Common::Vec2{1, 1};
+      g_fProjectionMatrix[0] =
+          rawProjection[0] * g_ActiveConfig.fAspectRatioHackW * fov_multiplier.x;
       g_fProjectionMatrix[1] = 0.0f;
-      g_fProjectionMatrix[2] = rawProjection[1] * g_ActiveConfig.fAspectRatioHackW;
+      g_fProjectionMatrix[2] =
+          rawProjection[1] * g_ActiveConfig.fAspectRatioHackW * fov_multiplier.x;
       g_fProjectionMatrix[3] = 0.0f;
 
       g_fProjectionMatrix[4] = 0.0f;
-      g_fProjectionMatrix[5] = rawProjection[2] * g_ActiveConfig.fAspectRatioHackH;
-      g_fProjectionMatrix[6] = rawProjection[3] * g_ActiveConfig.fAspectRatioHackH;
+      g_fProjectionMatrix[5] =
+          rawProjection[2] * g_ActiveConfig.fAspectRatioHackH * fov_multiplier.y;
+      g_fProjectionMatrix[6] =
+          rawProjection[3] * g_ActiveConfig.fAspectRatioHackH * fov_multiplier.y;
       g_fProjectionMatrix[7] = 0.0f;
 
       g_fProjectionMatrix[8] = 0.0f;
@@ -387,14 +393,15 @@ void VertexShaderManager::SetConstants()
       g_fProjectionMatrix[12] = 0.0f;
       g_fProjectionMatrix[13] = 0.0f;
 
-      // Hack to fix depth clipping precision issues (such as Sonic Adventure UI) #4164
-      g_fProjectionMatrix[14] = -(1.0f + FLT_EPSILON);
+      g_fProjectionMatrix[14] = -1.0f;
       g_fProjectionMatrix[15] = 0.0f;
 
       g_stats.gproj = g_fProjectionMatrix;
-      break;
+    }
+    break;
 
-    case GX_ORTHOGRAPHIC:
+    case ProjectionType::Orthographic:
+    {
       g_fProjectionMatrix[0] = rawProjection[0];
       g_fProjectionMatrix[1] = 0.0f;
       g_fProjectionMatrix[2] = 0.0f;
@@ -414,27 +421,28 @@ void VertexShaderManager::SetConstants()
       g_fProjectionMatrix[13] = 0.0f;
 
       g_fProjectionMatrix[14] = 0.0f;
-
-      // Hack to fix depth clipping precision issues (such as Sonic Unleashed UI) #4164
-      g_fProjectionMatrix[15] = 1.0f + FLT_EPSILON;
+      g_fProjectionMatrix[15] = 1.0f;
 
       g_stats.g2proj = g_fProjectionMatrix;
       g_stats.proj = rawProjection;
-      break;
+    }
+    break;
 
     default:
-      ERROR_LOG(VIDEO, "Unknown projection type: %d", xfmem.projection.type);
+      ERROR_LOG_FMT(VIDEO, "Unknown projection type: {}", xfmem.projection.type);
     }
 
-    PRIM_LOG("Projection: %f %f %f %f %f %f", rawProjection[0], rawProjection[1], rawProjection[2],
+    PRIM_LOG("Projection: {} {} {} {} {} {}", rawProjection[0], rawProjection[1], rawProjection[2],
              rawProjection[3], rawProjection[4], rawProjection[5]);
 
     auto corrected_matrix = s_viewportCorrection * Common::Matrix44::FromArray(g_fProjectionMatrix);
 
-    if (g_ActiveConfig.bFreeLook && xfmem.projection.type == GX_PERSPECTIVE)
-      corrected_matrix *= s_freelook_matrix;
+    if (g_freelook_camera.IsActive() && xfmem.projection.type == ProjectionType::Perspective)
+      corrected_matrix *= g_freelook_camera.GetView();
 
     memcpy(constants.projection.data(), corrected_matrix.data.data(), 4 * sizeof(float4));
+
+    g_freelook_camera.GetController()->SetClean();
 
     dirty = true;
   }
@@ -442,11 +450,17 @@ void VertexShaderManager::SetConstants()
   if (bTexMtxInfoChanged)
   {
     bTexMtxInfoChanged = false;
+    //constants.xfmem_dualTexInfo = xfmem.dualTexTrans.enabled;
+
+    dirty = true;
   }
 
   if (bLightingConfigChanged)
   {
     bLightingConfigChanged = false;
+
+    //constants.xfmem_numColorChans = xfmem.numChan.numColorChans;
+    dirty = true;
   }
 }
 
@@ -603,31 +617,6 @@ void VertexShaderManager::SetMaterialColorChanged(int index)
   nMaterialsChanged[index] = true;
 }
 
-void VertexShaderManager::TranslateView(float x, float y, float z)
-{
-  s_freelook_matrix = Common::Matrix44::Translate({x, z, y}) * s_freelook_matrix;
-
-  bProjectionChanged = true;
-}
-
-void VertexShaderManager::RotateView(float x, float y, float z)
-{
-  using Common::Matrix33;
-
-  s_freelook_matrix = Common::Matrix44::FromMatrix33(Matrix33::RotateX(x) * Matrix33::RotateY(y) *
-                                                     Matrix33::RotateZ(z)) *
-                      s_freelook_matrix;
-
-  bProjectionChanged = true;
-}
-
-void VertexShaderManager::ResetView()
-{
-  s_freelook_matrix = Common::Matrix44::Identity();
-
-  bProjectionChanged = true;
-}
-
 void VertexShaderManager::SetVertexFormat(u32 components)
 {
   if (components != s_components)
@@ -676,7 +665,7 @@ void VertexShaderManager::DoState(PointerWrap& p)
 {
   p.DoArray(g_fProjectionMatrix);
   p.Do(s_viewportCorrection);
-  p.Do(s_freelook_matrix);
+  g_freelook_camera.DoState(p);
 
   p.DoArray(nTransformMatricesChanged);
   p.DoArray(nNormalMatricesChanged);
@@ -691,9 +680,7 @@ void VertexShaderManager::DoState(PointerWrap& p)
   p.Do(bTexMtxInfoChanged);
   p.Do(bLightingConfigChanged);
 
-  p.Do(StatePaddingBefore);
   p.Do(constants);
-  p.Do(StatePaddingAfter);
 
   if (p.GetMode() == PointerWrap::MODE_READ)
   {

@@ -1,24 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.adapters;
 
 import android.content.Context;
-import android.support.v4.app.FragmentActivity;
-import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.fragment.app.FragmentActivity;
+import androidx.recyclerview.widget.RecyclerView;
+
 import org.dolphinemu.dolphinemu.R;
 import org.dolphinemu.dolphinemu.activities.EmulationActivity;
-import org.dolphinemu.dolphinemu.dialogs.GameDetailsDialog;
+import org.dolphinemu.dolphinemu.dialogs.GamePropertiesDialog;
 import org.dolphinemu.dolphinemu.model.GameFile;
+import org.dolphinemu.dolphinemu.services.GameFileCacheManager;
 import org.dolphinemu.dolphinemu.viewholders.GameViewHolder;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> implements
-  View.OnClickListener,
-  View.OnLongClickListener
+        View.OnClickListener,
+        View.OnLongClickListener
 {
   private int mResourceId;
   private List<GameFile> mGameFiles;
@@ -36,7 +40,7 @@ public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> impl
    * Called by the LayoutManager when it is necessary to create a new view.
    *
    * @param parent   The RecyclerView (I think?) the created view will be thrown into.
-   * @param viewType Not used here, but useful when more than one type of child will be used in the RecyclerView.
+   * @param viewType Useful when more than one type of child will be used in the RecyclerView.
    * @return The created ViewHolder with references to all the child view's members.
    */
   @Override
@@ -44,7 +48,7 @@ public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> impl
   {
     // Create a new view.
     View gameCard = LayoutInflater.from(parent.getContext())
-      .inflate(viewType, parent, false);
+            .inflate(viewType, parent, false);
 
     gameCard.setOnClickListener(this);
     gameCard.setOnLongClickListener(this);
@@ -72,64 +76,17 @@ public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> impl
   {
     GameFile gameFile = mGameFiles.get(position);
     gameFile.loadGameBanner(holder.imageScreenshot);
-
     holder.textGameTitle.setText(gameFile.getTitle());
     holder.textCompany.setText(gameFile.getCompany());
 
-    final int[] platforms = {
-      R.string.game_platform_ngc,
-      R.string.game_platform_wii,
-      R.string.game_platform_ware,
-      R.string.game_platform_n64,
-      R.string.game_platform_nes,
-      R.string.game_platform_sms,
-      R.string.game_platform_smd,
-      R.string.game_platform_c64,
-      R.string.game_platform_snes,
-    };
-    final Context context = holder.textPlatform.getContext();
-    final String[] countryNames = context.getResources().getStringArray(R.array.countryNames);
-    int platform = gameFile.getPlatform();
-    int country = gameFile.getCountry();
-    int discNumber = gameFile.getDiscNumber() + 1;
-    if (platform == 2)
-    {
-      // WiiWAD, Virtual Console
-      String gameId = gameFile.getGameId();
-      switch (gameId.charAt(0))
-      {
-        case 'N':
-          // N64
-          platform = 3;
-          break;
-        case 'F':
-          // NES
-          platform = 4;
-          break;
-        case 'L':
-          // SMS
-          platform = 5;
-          break;
-        case 'M':
-          // SMD
-          platform = 6;
-          break;
-        case 'C':
-          // C64
-          platform = 7;
-          break;
-        case 'J':
-          // SNES
-          platform = 8;
-          break;
-      }
-    }
-    String discInfo = discNumber > 1 ? "DISC-" + discNumber : "";
-    if (platform < 0 || platform >= platforms.length)
-      platform = 2;
-    if (country < 0 || country >= countryNames.length)
-      country = countryNames.length - 1;
-    holder.textPlatform.setText(context.getString(platforms[platform], countryNames[country], discInfo));
+    final int[] platforms =
+            {R.string.game_platform_ngc, R.string.game_platform_wii, R.string.game_platform_ware};
+    Context context = holder.textPlatform.getContext();
+    String[] countryNames = context.getResources().getStringArray(R.array.countryNames);
+    String platform = context.getString(platforms[gameFile.getPlatform()],
+            countryNames[gameFile.getCountry()]);
+    holder.textPlatform.setText(platform);
+
     holder.gameFile = gameFile;
   }
 
@@ -171,6 +128,14 @@ public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> impl
   }
 
   /**
+   * Re-fetches game metadata from the game file cache.
+   */
+  public void refetchMetadata()
+  {
+    notifyItemRangeChanged(0, getItemCount());
+  }
+
+  /**
    * Launches the game that was clicked on.
    *
    * @param view The card representing the game the user wants to play.
@@ -179,7 +144,9 @@ public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> impl
   public void onClick(View view)
   {
     GameViewHolder holder = (GameViewHolder) view.getTag();
-    EmulationActivity.launch(view.getContext(), holder.gameFile, null);
+
+    String[] paths = GameFileCacheManager.findSecondDiscAndGetPaths(holder.gameFile);
+    EmulationActivity.launch((FragmentActivity) view.getContext(), paths, false);
   }
 
   /**
@@ -193,8 +160,8 @@ public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> impl
   {
     FragmentActivity activity = (FragmentActivity) view.getContext();
     GameViewHolder holder = (GameViewHolder) view.getTag();
-    GameDetailsDialog.newInstance(holder.gameFile.getPath()).show(
-      activity.getSupportFragmentManager(), "GameDetailsDialog");
+    GamePropertiesDialog.newInstance(holder.gameFile).show(
+            activity.getSupportFragmentManager(), "GamePropertiesDialog");
     return true;
   }
 }

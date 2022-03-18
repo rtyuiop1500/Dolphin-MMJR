@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 package org.dolphinemu.dolphinemu.utils;
 
 import android.app.PendingIntent;
@@ -9,8 +11,11 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
+import android.os.Build;
 
-import org.dolphinemu.dolphinemu.activities.EmulationActivity;
+import androidx.annotation.Keep;
+
+import org.dolphinemu.dolphinemu.DolphinApplication;
 import org.dolphinemu.dolphinemu.services.USBPermService;
 
 import java.util.Arrays;
@@ -30,38 +35,36 @@ public class Java_WiimoteAdapter
   static UsbInterface[] usb_intf = new UsbInterface[MAX_WIIMOTES];
   static UsbEndpoint[] usb_in = new UsbEndpoint[MAX_WIIMOTES];
 
+  @Keep
   public static byte[][] wiimote_payload = new byte[MAX_WIIMOTES][MAX_PAYLOAD];
 
   private static void RequestPermission()
   {
-    Context context = EmulationActivity.get();
-    if (context != null)
+    HashMap<String, UsbDevice> devices = manager.getDeviceList();
+    for (Map.Entry<String, UsbDevice> pair : devices.entrySet())
     {
-      HashMap<String, UsbDevice> devices = manager.getDeviceList();
-      for (Map.Entry<String, UsbDevice> pair : devices.entrySet())
+      UsbDevice dev = pair.getValue();
+      if (dev.getProductId() == NINTENDO_WIIMOTE_PRODUCT_ID &&
+              dev.getVendorId() == NINTENDO_VENDOR_ID)
       {
-        UsbDevice dev = pair.getValue();
-        if (dev.getProductId() == NINTENDO_WIIMOTE_PRODUCT_ID &&
-          dev.getVendorId() == NINTENDO_VENDOR_ID)
+        if (!manager.hasPermission(dev))
         {
-          if (!manager.hasPermission(dev))
-          {
-            Log.warning("Requesting permission for Wii Remote adapter");
-            Intent intent = new Intent();
-            PendingIntent pend_intent;
-            intent.setClass(context, USBPermService.class);
-            pend_intent = PendingIntent.getService(context, 0, intent, 0);
-            manager.requestPermission(dev, pend_intent);
-          }
+          Log.warning("Requesting permission for Wii Remote adapter");
+
+          Context context = DolphinApplication.getAppContext();
+          Intent intent = new Intent(context, USBPermService.class);
+
+          int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ?
+                  PendingIntent.FLAG_IMMUTABLE : 0;
+          PendingIntent pendingIntent = PendingIntent.getService(context, 0, intent, flags);
+
+          manager.requestPermission(dev, pendingIntent);
         }
       }
     }
-    else
-    {
-      Log.warning("Cannot request Wiimote adapter permission as EmulationActivity is null.");
-    }
   }
 
+  @Keep
   public static boolean QueryAdapter()
   {
     HashMap<String, UsbDevice> devices = manager.getDeviceList();
@@ -69,7 +72,7 @@ public class Java_WiimoteAdapter
     {
       UsbDevice dev = pair.getValue();
       if (dev.getProductId() == NINTENDO_WIIMOTE_PRODUCT_ID &&
-        dev.getVendorId() == NINTENDO_VENDOR_ID)
+              dev.getVendorId() == NINTENDO_VENDOR_ID)
       {
         if (manager.hasPermission(dev))
           return true;
@@ -80,29 +83,13 @@ public class Java_WiimoteAdapter
     return false;
   }
 
+  @Keep
   public static int Input(int index)
   {
-    int readSize = usb_con.bulkTransfer(usb_in[index], wiimote_payload[index], MAX_PAYLOAD, TIMEOUT);
-    // When initializing an official wiimote, some input report reads error out. From debugging it appears
-    // that some games send a request to read memory on the wiimote and get an input report that the memory
-    // does not exist. This is expected(see EmuSubroutines.cpp SendReadDataReply()). The issue is
-    // the next input report we get a failure which causes a crash.
-    // From testing, these failures only occur when initializing the wiimote or when emulation exits,
-    // never during normal gameplay.
-    // So instead of returning a failure to read, we modify the input report to be a data report
-    // with a size of 3, which will just return the state of the wiimote buttons from the previous report
-    // I know this is really hacky but I don't know enough about wiimotes to figure it out atm and
-    // this will allow the use of official wiimotes for the time. Note that this behaviour has only
-    // been reported when using official wiimotes. Use of EEEkit wiimotes do not produce such failures.
-    // TODO not this
-    if (readSize < 0)
-    {
-      wiimote_payload[index][0] = 0x30;
-      readSize = 3;
-    }
-    return readSize;
+    return usb_con.bulkTransfer(usb_in[index], wiimote_payload[index], MAX_PAYLOAD, TIMEOUT);
   }
 
+  @Keep
   public static int Output(int index, byte[] buf, int size)
   {
     byte report_number = buf[0];
@@ -119,12 +106,12 @@ public class Java_WiimoteAdapter
     final int HID_OUTPUT = (2 << 8);
 
     int write = usb_con.controlTransfer(
-      LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
-      HID_SET_REPORT,
-      HID_OUTPUT | report_number,
-      index,
-      buf, size,
-      1000);
+            LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_OUT,
+            HID_SET_REPORT,
+            HID_OUTPUT | report_number,
+            index,
+            buf, size,
+            1000);
 
     if (write < 0)
       return 0;
@@ -132,6 +119,7 @@ public class Java_WiimoteAdapter
     return write + 1;
   }
 
+  @Keep
   public static boolean OpenAdapter()
   {
     // If the adapter is already open. Don't attempt to do it again
@@ -143,7 +131,7 @@ public class Java_WiimoteAdapter
     {
       UsbDevice dev = pair.getValue();
       if (dev.getProductId() == NINTENDO_WIIMOTE_PRODUCT_ID &&
-        dev.getVendorId() == NINTENDO_VENDOR_ID)
+              dev.getVendorId() == NINTENDO_VENDOR_ID)
       {
         if (manager.hasPermission(dev))
         {

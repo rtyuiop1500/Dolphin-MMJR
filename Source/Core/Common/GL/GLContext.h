@@ -1,6 +1,5 @@
 // Copyright 2008 Dolphin Emulator Project
-// Licensed under GPLv2+
-// Refer to the license.txt file included.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -30,27 +29,29 @@ public:
   u32 GetBackBufferWidth() const { return m_backbuffer_width; }
   u32 GetBackBufferHeight() const { return m_backbuffer_height; }
 
-  virtual bool IsHeadless() const { return true; }
+  virtual bool IsHeadless() const;
 
-  virtual std::unique_ptr<GLContext> CreateSharedContext() { return nullptr; }
+  virtual std::unique_ptr<GLContext> CreateSharedContext();
 
-  virtual bool MakeCurrent() { return false; }
-  virtual bool ClearCurrent() { return false; }
+  virtual bool MakeCurrent();
+  virtual bool ClearCurrent();
 
-  virtual void Update() {}
-  virtual void UpdateSurface(void* window_handle) {}
+  virtual void Update();
+  virtual void UpdateSurface(void* window_handle);
 
-  virtual void Swap() {}
-  virtual void SwapInterval(int interval) {}
+  virtual void Swap();
+  virtual void SwapInterval(int interval);
 
-  virtual void* GetFuncAddress(const std::string& name) { return nullptr; }
+  virtual void* GetFuncAddress(const std::string& name);
 
   // Creates an instance of GLContext specific to the platform we are running on.
   // If successful, the context is made current on the calling thread.
-  static std::unique_ptr<GLContext> Create(const WindowSystemInfo& wsi, bool core = true,
-                                           bool prefer_egl = false, bool prefer_gles = false);
+  static std::unique_ptr<GLContext> Create(const WindowSystemInfo& wsi,
+                                           bool core = true, bool prefer_egl = false,
+                                           bool prefer_gles = false);
+
 protected:
-  virtual bool Initialize(void* display_handle, void* window_handle, bool core) { return false; }
+  virtual bool Initialize(const WindowSystemInfo& wsi, bool core);
 
   Mode m_opengl_mode = Mode::Detect;
 
