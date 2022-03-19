@@ -4,14 +4,14 @@
     "type": "APK",
     "kind": "Directory"
   },
-  "applicationId": "org.dolphinemu.mmjr",
+  "applicationId": "org.mm.jr",
   "variantName": "release",
   "elements": [
     {
       "type": "SINGLE",
       "filters": [],
-      "versionCode": 17849,
-      "versionName": "5.0-15538",
+      "versionCode": 36,
+      "versionName": "15951",
       "outputFile": "app-release.apk"
     }
   ]
