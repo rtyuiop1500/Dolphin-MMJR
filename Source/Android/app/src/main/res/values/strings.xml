@@ -3,7 +3,7 @@
 
     <!-- Title of the app -->
     <string name="app_name">Dolphin |MMJR|</string>
-    <string name="app_name_version">Dolphin |MMJR| - 15950</string>
+    <string name="app_name_version">Dolphin |MMJR| - 15951</string>
     <string name="host">app</string>
     <string name="scheme">dolphinemu</string>
 
