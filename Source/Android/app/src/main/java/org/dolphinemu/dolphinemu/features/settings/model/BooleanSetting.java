@@ -68,6 +68,10 @@ public enum BooleanSetting implements AbstractBooleanSetting
   MAIN_USE_NEW_EMULATION_UI(Settings.FILE_DOLPHIN, Settings.SECTION_INI_ANDROID,
           "UseNewEmulationUI", true),
 
+  // file picker
+  MAIN_USE_OLD_FILE_PICKER(Settings.FILE_DOLPHIN, Settings.SECTION_INI_INTERFACE,
+          "UseOldFilePicker", false),
+
   MAIN_BUTTON_TOGGLE_GC_0(Settings.FILE_DOLPHIN, Settings.SECTION_INI_ANDROID_OVERLAY_BUTTONS,
           "ButtonToggleGCButtonA", true),
   MAIN_BUTTON_TOGGLE_GC_1(Settings.FILE_DOLPHIN, Settings.SECTION_INI_ANDROID_OVERLAY_BUTTONS,

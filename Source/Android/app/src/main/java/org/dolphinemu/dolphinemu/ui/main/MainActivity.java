@@ -310,8 +310,15 @@ public final class MainActivity extends AppCompatActivity
 
   public void launchFileListActivity()
   {
-    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-    startActivityForResult(intent, REQUEST_DIRECTORY);
+    if (BooleanSetting.MAIN_USE_OLD_FILE_PICKER.getBooleanGlobal())
+    {
+      FileBrowserHelper.openDirectoryPicker(this, FileBrowserHelper.GAME_EXTENSIONS);
+    }
+    else
+    {
+      Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+      startActivityForResult(intent, REQUEST_DIRECTORY);
+    }
   }
 
   public void launchOpenFileActivity(int requestCode)
@@ -518,6 +525,14 @@ public final class MainActivity extends AppCompatActivity
   }
 
   /**
+   * Called when a selection is made using the legacy folder picker.
+   */
+  public void onDirectorySelected(String dir)
+  {
+    mDirToAdd = dir;
+  }
+
+  /**
    * @param requestCode An int describing whether the Activity that is returning did so successfully.
    * @param resultCode  An int describing what Activity is giving us this callback.
    * @param result      The information the returning Activity is providing us.
@@ -534,7 +549,14 @@ public final class MainActivity extends AppCompatActivity
       switch (requestCode)
       {
         case REQUEST_DIRECTORY:
-          onDirectorySelected(result);
+          if (BooleanSetting.MAIN_USE_OLD_FILE_PICKER.getBooleanGlobal())
+          {
+            onDirectorySelected(FileBrowserHelper.getSelectedPath(result));
+          }
+          else
+          {
+            onDirectorySelected(result);
+          }
           break;
 
         case REQUEST_GAME_FILE:

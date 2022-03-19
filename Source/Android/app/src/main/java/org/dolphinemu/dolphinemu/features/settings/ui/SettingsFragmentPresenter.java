@@ -292,6 +292,8 @@ public final class SettingsFragmentPresenter
             R.string.download_game_covers, 0));
     sl.add(new CheckBoxSetting(mContext, BooleanSetting.MAIN_USE_NEW_EMULATION_UI,
             R.string.use_new_emulation_ui, R.string.use_new_emulation_ui_description));
+    sl.add(new CheckBoxSetting(mContext, BooleanSetting.MAIN_USE_OLD_FILE_PICKER,
+            R.string.use_old_file_picker, R.string.use_old_file_picker_description));
     sl.add(new CheckBoxSetting(mContext, BooleanSetting.UPDATER_CHECK_AT_STARTUP,
             R.string.updater_check_startup,
             R.string.updater_check_startup_description));
