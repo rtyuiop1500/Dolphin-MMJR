@@ -46,21 +46,11 @@ struct PixelShaderConstants
   std::array<uint4, 16> pack1;  // .xy - combiners, .z - tevind, .w - iref
   std::array<uint4, 8> pack2;   // .x - tevorder, .y - tevksel, .z/.w - SamplerState tm0/tm1
   std::array<int4, 32> konst;   // .rgba
-  // The following are used in ubershaders when using shader_framebuffer_fetch blending
-  u32 blend_enable;
-  SrcBlendFactor blend_src_factor;
-  SrcBlendFactor blend_src_factor_alpha;
-  DstBlendFactor blend_dst_factor;
-  DstBlendFactor blend_dst_factor_alpha;
-  u32 blend_subtract;
-  u32 blend_subtract_alpha;
 };
 
 struct VertexShaderConstants
 {
   u32 components;           // .x
-  u32 xfmem_dualTexInfo;    // .y
-  u32 xfmem_numColorChans;  // .z
   u32 missing_color_hex;    // .w, used for change detection but not directly by shaders
   float4 missing_color_value;
 

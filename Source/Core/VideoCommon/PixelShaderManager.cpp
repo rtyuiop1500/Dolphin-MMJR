@@ -450,24 +450,24 @@ void PixelShaderManager::SetBlendModeChanged()
     s_blend_enable = state.blendenable;
     dirty = true;
   }
-  if (constants.blend_src_factor != state.srcfactor)
+  if (s_blend_src_factor != u32(state.srcfactor.Value()))
   {
-    constants.blend_src_factor = state.srcfactor;
+    s_blend_src_factor = u32(state.srcfactor.Value());
     dirty = true;
   }
-  if (constants.blend_src_factor_alpha != state.srcfactoralpha)
+  if (s_blend_src_factor_alpha != u32(state.srcfactoralpha.Value()))
   {
-    constants.blend_src_factor_alpha = state.srcfactoralpha;
+    s_blend_src_factor_alpha = u32(state.srcfactoralpha.Value());
     dirty = true;
   }
-  if (constants.blend_dst_factor != state.dstfactor)
+  if (s_blend_dst_factor != u32(state.dstfactor.Value()))
   {
-    constants.blend_dst_factor = state.dstfactor;
+    s_blend_dst_factor = u32(state.dstfactor.Value());
     dirty = true;
   }
-  if (constants.blend_dst_factor_alpha != state.dstfactoralpha)
+  if (s_blend_dst_factor_alpha != u32(state.dstfactoralpha.Value()))
   {
-    constants.blend_dst_factor_alpha = state.dstfactoralpha;
+    s_blend_dst_factor_alpha = u32(state.dstfactoralpha.Value());
     dirty = true;
   }
   if (s_blend_subtract != state.subtract)
