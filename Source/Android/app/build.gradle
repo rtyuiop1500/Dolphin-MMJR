@@ -106,14 +106,13 @@ dependencies {
 }
 
 def getVersion() {
-    def versionNumber = "0.0"
+    def versionNumber = '0.0'
 
     try {
-        versionNumber = 'git describe --always --long'.execute([], project.rootDir).text
+        versionNumber = 'git describe --always --tags --abbrev=0'.execute([], project.rootDir).text
             .trim()
-            .replaceAll(/(-0)?-[^-]+$/, "")
     } catch (Exception e) {
-        logger.error('Cannot find git, defaulting to dummy version number')
+        logger.error(e + ': Cannot find git, defaulting to dummy version number')
     }
 
     return versionNumber
@@ -124,10 +123,11 @@ def getBuildVersionCode() {
     try {
         def versionNumber = 'git rev-list --first-parent --count HEAD'.execute([], project.rootDir).text
             .trim()
-        return Integer.valueOf(versionNumber);
+        return Integer.valueOf(versionNumber)
     } catch (Exception e) {
-        logger.error('Cannot find git, defaulting to dummy version number')
+        logger.error(e + ': Cannot find git, defaulting to dummy version number')
     }
 
-    return 15808;
+    return 1
 }
+
