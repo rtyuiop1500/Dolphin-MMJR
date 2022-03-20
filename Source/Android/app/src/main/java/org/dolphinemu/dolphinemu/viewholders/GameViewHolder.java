@@ -22,6 +22,7 @@ public class GameViewHolder extends RecyclerView.ViewHolder
   public TextView textCompany;
   public TextView textPlatform;
   public TextView textGameCaption;
+  public TextView textGameCountry;
 
   public GameFile gameFile;
 
@@ -36,5 +37,6 @@ public class GameViewHolder extends RecyclerView.ViewHolder
     textCompany = itemView.findViewById(R.id.text_company);
     textPlatform = itemView.findViewById(R.id.text_platform);
 		textGameCaption = itemView.findViewById(R.id.text_game_caption);
+		textGameCountry = itemView.findViewById(R.id.text_game_country);
   }
 }

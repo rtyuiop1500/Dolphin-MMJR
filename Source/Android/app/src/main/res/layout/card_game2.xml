@@ -28,6 +28,12 @@
         android:visibility="gone" />
 
     <TextView
+        android:id="@+id/text_company"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
+    <TextView
         android:id="@+id/text_platform"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -40,25 +46,31 @@
         android:layout_marginBottom="3dp">
 
 
-    <TextView
-        android:id="@+id/text_game_caption"
-        style="@android:style/TextAppearance.Material.Caption"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:textColor="@android:color/white"
-        android:textStyle="bold"
-        android:paddingVertical="2dp"
-        android:paddingHorizontal="3dp"
-        android:background="@android:color/holo_red_dark"
-        android:visibility="gone"
-        tools:visibility="visible"
-        tools:text="Disc 1" />
+        <TextView
+            android:id="@+id/text_game_caption"
+            style="@android:style/TextAppearance.Material.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:paddingVertical="2dp"
+            android:paddingHorizontal="3dp"
+            android:background="@android:color/holo_red_dark"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:text="Disc 1" />
 
-    <TextView
-        android:id="@+id/text_company"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
+        <TextView
+            android:id="@+id/text_game_country"
+            style="@android:style/TextAppearance.Material.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:paddingVertical="2dp"
+            android:paddingHorizontal="3dp"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:background="@color/design_default_color_primary"
+            tools:text="NTSC" />
 
     </LinearLayout>
 
