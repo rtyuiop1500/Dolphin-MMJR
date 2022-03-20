@@ -91,4 +91,20 @@
         <item name="colorAccent">@color/dolphin_accent_gamecube</item>
     </style>
 
+
+    <!-- User by CheatActivity and QuickSettings -->
+    <attr name="textColor" format="color" />
+    <attr name="colorDivider" format="color" />
+
+    <!-- Gradient color attributes -->
+    <attr name="colorGradientPrimaryStart" format="color" />
+    <attr name="colorGradientPrimaryCenter" format="color" />
+    <attr name="colorGradientPrimaryEnd" format="color" />
+    <attr name="colorGradientSecondaryStart" format="color" />
+    <attr name="colorGradientSecondaryCenter" format="color" />
+    <attr name="colorGradientSecondaryEnd" format="color" />
+    <attr name="colorOnGradientPrimary" format="color" />
+    <attr name="textColorOnPrimary" format="color" />
+    <attr name="textColorAccent" format="color" />
+
 </resources>
