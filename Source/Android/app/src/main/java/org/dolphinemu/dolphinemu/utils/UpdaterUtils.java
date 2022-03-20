@@ -206,6 +206,6 @@ public class UpdaterUtils
 
   public static VersionCode getBuildVersion()
   {
-    return VersionCode.create("1.0-15951"); // get version
+    return VersionCode.create("1.0-15952"); // get version
   }
 }
