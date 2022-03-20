@@ -125,6 +125,8 @@
         android:textStyle="bold"
         android:textAlignment="center"
         android:textColor="@android:color/white"
+        android:layout_width="210dp"
+        android:layout_gravity="center"
         style="@style/InGameMenuOption"/>
 
 </LinearLayout>
