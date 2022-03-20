@@ -4,7 +4,6 @@
 #include "VideoCommon/IndexGenerator.h"
 
 #include <array>
-#include <cstddef>
 #include <cstring>
 
 #include "Common/CommonTypes.h"
@@ -14,18 +13,17 @@
 
 namespace
 {
-//////////////////////////////////////////////////////////////////////////////////
 // Triangles
 u16* AddList(u16* index_ptr, u32 num_verts, u32 index)
 {
   bool ccw = bpmem.genMode.cullmode == CullMode::Front;
-  int v1 = ccw ? 2 : 1;
-  int v2 = ccw ? 1 : 2;
-  for (u32 i = 0; i < num_verts; i += 3)
+  int v1 = ccw ? 0 : 1;
+  int v2 = ccw ? 1 : 0;
+  for (u32 i = 2; i < num_verts; i += 3)
   {
-    *index_ptr++ = index + i;
-    *index_ptr++ = index + i + v1;
-    *index_ptr++ = index + i + v2;
+    *index_ptr++ = index + i - 2;
+    *index_ptr++ = index + i - v1;
+    *index_ptr++ = index + i - v2;
   }
   return index_ptr;
 }
@@ -33,13 +31,13 @@ u16* AddList(u16* index_ptr, u32 num_verts, u32 index)
 u16* AddStrip(u16* index_ptr, u32 num_verts, u32 index)
 {
   bool ccw = bpmem.genMode.cullmode == CullMode::Front;
-  int wind = ccw ? 2 : 1;
-  for (u32 i = 0; i < num_verts - 2; ++i)
+  int wind = ccw ? 0 : 1;
+  for (u32 i = 2; i < num_verts; ++i)
   {
-    *index_ptr++ = index + i;
-    *index_ptr++ = index + i + wind;
-    wind ^= 3;  // toggle between 1 and 2
-    *index_ptr++ = index + i + wind;
+    *index_ptr++ = index + i - 2;
+    *index_ptr++ = index + i - wind;
+    wind ^= 1;  // toggle between 0 and 1
+    *index_ptr++ = index + i - wind;
   }
   return index_ptr;
 }
@@ -66,21 +64,18 @@ u16* AddStrip(u16* index_ptr, u32 num_verts, u32 index)
 u16* AddFan(u16* index_ptr, u32 num_verts, u32 index)
 {
   bool ccw = bpmem.genMode.cullmode == CullMode::Front;
-  int v1 = ccw ? 2 : 1;
-  int v2 = ccw ? 1 : 2;
-  // The Last Story
-  // if only one vertex remaining, render a triangle
-  num_verts = num_verts < 3 ? 1 : num_verts - 2;
-  for (u32 i = 0; i < num_verts; ++i)
+  int v1 = ccw ? 0 : 1;
+  int v2 = ccw ? 1 : 0;
+  for (u32 i = 2; i < num_verts; ++i)
   {
     *index_ptr++ = index;
-    *index_ptr++ = index + i + v1;
-    *index_ptr++ = index + i + v2;
+    *index_ptr++ = index + i - v1;
+    *index_ptr++ = index + i - v2;
   }
   return index_ptr;
 }
 
-/*
+/**
  * QUAD simulator
  *
  * 0---1   4---5
@@ -100,30 +95,30 @@ u16* AddFan(u16* index_ptr, u32 num_verts, u32 index)
 u16* AddQuads(u16* index_ptr, u32 num_verts, u32 index)
 {
   bool ccw = bpmem.genMode.cullmode == CullMode::Front;
-  int v1 = ccw ? 2 : 1;
-  int v2 = ccw ? 1 : 2;
-  int v3 = ccw ? 3 : 2;
-  int v4 = ccw ? 2 : 3;
-  u32 i = 0;
+  u32 i = 3;
+  int v1 = ccw ? 1 : 2;
+  int v2 = ccw ? 2 : 1;
+  int v3 = ccw ? 0 : 1;
+  int v4 = ccw ? 1 : 0;
 
-  for (; i < (num_verts & ~3); i += 4)
+  for (; i < num_verts; i += 4)
   {
-    *index_ptr++ = index + i;
-    *index_ptr++ = index + i + v1;
-    *index_ptr++ = index + i + v2;
+    *index_ptr++ = index + i - 3;
+    *index_ptr++ = index + i - v1;
+    *index_ptr++ = index + i - v2;
 
-    *index_ptr++ = index + i;
-    *index_ptr++ = index + i + v3;
-    *index_ptr++ = index + i + v4;
+    *index_ptr++ = index + i - 3;
+    *index_ptr++ = index + i - v3;
+    *index_ptr++ = index + i - v4;
   }
 
   // Legend of Zelda The Wind Waker
   // if three vertices remaining, render a triangle
-  if (num_verts & 3)
+  if (i == num_verts)
   {
-    *index_ptr++ = index + i;
-    *index_ptr++ = index + i + v1;
-    *index_ptr++ = index + i + v2;
+    *index_ptr++ = index + i - 3;
+    *index_ptr++ = index + i - v1;
+    *index_ptr++ = index + i - v2;
   }
 
   return index_ptr;
@@ -137,10 +132,10 @@ u16* AddQuads_nonstandard(u16* index_ptr, u32 num_verts, u32 index)
 
 u16* AddLineList(u16* index_ptr, u32 num_verts, u32 index)
 {
-  for (u32 i = 0; i < num_verts; i += 2)
+  for (u32 i = 1; i < num_verts; i += 2)
   {
+    *index_ptr++ = index + i - 1;
     *index_ptr++ = index + i;
-    *index_ptr++ = index + i + 1;
   }
   return index_ptr;
 }
@@ -149,7 +144,7 @@ u16* AddLineList(u16* index_ptr, u32 num_verts, u32 index)
 // so converting them to lists
 u16* AddLineStrip(u16* index_ptr, u32 num_verts, u32 index)
 {
-  for (u32 i = 0; i < num_verts - 1; ++i)
+  for (u32 i = 0; i < num_verts; ++i)
   {
     *index_ptr++ = index + i;
     *index_ptr++ = index + i + 1;
@@ -211,12 +206,4 @@ void IndexGenerator::AddExternalIndices(const u16* indices, u32 num_indices, u32
   std::memcpy(m_index_buffer_current, indices, sizeof(u16) * num_indices);
   m_index_buffer_current += num_indices;
   m_base_index += num_vertices;
-}
-
-u32 IndexGenerator::GetRemainingIndices() const
-{
-  // -1 is reserved for primitive restart (OGL + DX11)
-  constexpr u32 max_index = 65534;
-
-  return max_index - m_base_index;
 }
