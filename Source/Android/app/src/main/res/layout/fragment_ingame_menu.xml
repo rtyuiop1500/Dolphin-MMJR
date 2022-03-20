@@ -109,6 +109,9 @@
     <Button
         android:id="@+id/menu_exit"
         android:text="@string/emulation_exit"
+        android:background="@android:color/holo_red_dark"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
         style="@style/InGameMenuOption"/>
 
 </LinearLayout>

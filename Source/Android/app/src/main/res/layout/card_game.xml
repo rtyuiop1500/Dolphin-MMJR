@@ -60,6 +60,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:singleLine="true"
+                android:textStyle="bold"
                 android:textColor="@android:color/white"
                 tools:text="The Legend of Zelda: The Wind Waker" />
 
@@ -69,8 +70,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:singleLine="true"
+                android:textStyle="bold"
                 android:text="@string/game_platform_wii"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/dolphin_purple"/>
 
             <TextView
                 android:id="@+id/text_company"
