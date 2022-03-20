@@ -9,6 +9,18 @@
               tools:layout_width="250dp">
 
     <TextView
+        android:id="@+id/text_info"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_gravity="right"
+        android:text="999MB"
+        android:textColor="@drawable/tag_red_gradient"
+        android:textSize="18sp"
+        android:typeface="monospace" />
+
+
+    <TextView
         android:id="@+id/text_game_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -18,7 +30,7 @@
         android:maxLines="@integer/game_title_lines"
         android:ellipsize="end"
         android:layout_marginHorizontal="32dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="3dp"
         android:layout_marginBottom="16dp"/>
 
     <ScrollView
@@ -109,8 +121,9 @@
     <Button
         android:id="@+id/menu_exit"
         android:text="@string/emulation_exit"
-        android:background="@android:color/holo_red_dark"
+        android:background="@drawable/button_red_gradient"
         android:textStyle="bold"
+        android:textAlignment="center"
         android:textColor="@android:color/white"
         style="@style/InGameMenuOption"/>
 

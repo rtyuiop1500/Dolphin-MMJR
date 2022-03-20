@@ -66,7 +66,7 @@ public enum BooleanSetting implements AbstractBooleanSetting
 
   // in-game ui
   MAIN_USE_NEW_EMULATION_UI(Settings.FILE_DOLPHIN, Settings.SECTION_INI_ANDROID,
-          "UseNewEmulationUI", true),
+          "UseNewEmulationUI", false),
 
   // file picker
   MAIN_USE_OLD_FILE_PICKER(Settings.FILE_DOLPHIN, Settings.SECTION_INI_INTERFACE,
