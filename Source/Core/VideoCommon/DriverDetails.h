@@ -148,6 +148,7 @@ enum Bug
   // It works for all the buffer types we use except GL_ELEMENT_ARRAY_BUFFER.
   // Causes complete blackscreen issues.
   BUG_INTEL_BROKEN_BUFFER_STORAGE,
+
   // Bug: Qualcomm has broken boolean negation
   // Affected devices: Adreno
   // Started Version: -1
