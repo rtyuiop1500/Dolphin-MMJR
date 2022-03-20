@@ -5,6 +5,8 @@ package org.dolphinemu.dolphinemu.fragments;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Debug;
+import android.os.Handler;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -25,6 +27,8 @@ public final class MenuFragment extends Fragment implements View.OnClickListener
   private TextView mTitleText;
   private View mPauseEmulation;
   private View mUnpauseEmulation;
+  private TextView mInfo;
+  private Handler mHandler;
 
   private static final String KEY_TITLE = "title";
   private static final String KEY_WII = "wii";
@@ -76,6 +80,14 @@ public final class MenuFragment extends Fragment implements View.OnClickListener
     return visibleFrame.bottom - visibleFrame.top - getResources().getDisplayMetrics().heightPixels;
   }
 
+  // display ram usage
+  public void setHeapInfo()
+  {
+    long heapsize = Debug.getNativeHeapAllocatedSize() >> 20;
+    mInfo.setText(String.format("%dMB", heapsize));
+    mHandler.postDelayed(this::setHeapInfo, 1000);
+  }
+
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)
   {
@@ -85,6 +97,10 @@ public final class MenuFragment extends Fragment implements View.OnClickListener
 
     mPauseEmulation = options.findViewById(R.id.menu_pause_emulation);
     mUnpauseEmulation = options.findViewById(R.id.menu_unpause_emulation);
+
+    mInfo = rootView.findViewById(R.id.text_info);
+    mHandler = new Handler(getActivity().getMainLooper());
+    setHeapInfo();
 
     updatePauseUnpauseVisibility();
 

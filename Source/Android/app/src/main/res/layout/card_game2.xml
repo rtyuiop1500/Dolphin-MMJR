@@ -55,7 +55,7 @@
             android:textStyle="bold"
             android:paddingVertical="2dp"
             android:paddingHorizontal="3dp"
-            android:background="@android:color/holo_red_dark"
+            android:background="@drawable/tag_red_gradient"
             android:visibility="gone"
             tools:visibility="visible"
             tools:text="Disc 1" />
@@ -69,7 +69,7 @@
             android:paddingHorizontal="3dp"
             android:textColor="@android:color/white"
             android:textStyle="bold"
-            android:background="@color/design_default_color_primary"
+            android:background="@drawable/tag_purple_gradient"
             tools:text="NTSC" />
 
     </LinearLayout>

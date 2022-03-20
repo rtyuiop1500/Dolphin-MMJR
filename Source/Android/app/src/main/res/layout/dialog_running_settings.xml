@@ -28,7 +28,7 @@
         android:layout_marginEnd="2dp"
         android:text="999MB"
         android:textAlignment="center"
-        android:textColor="@android:color/holo_red_dark"
+        android:textColor="@drawable/tag_red_gradient"
         android:textSize="18sp"
         android:typeface="monospace" />
 
@@ -48,7 +48,7 @@
             android:paddingLeft="3dp"
             android:paddingBottom="3dp"
             android:paddingRight="3dp"
-            android:background="@android:color/holo_red_dark"
+            android:background="@android:color/holo_purple"
             android:src="@drawable/ic_baseline_open_in_new"
             android:tooltipText="@string/open_settings_tooltip"
             tools:ignore="UnusedAttribute" />
