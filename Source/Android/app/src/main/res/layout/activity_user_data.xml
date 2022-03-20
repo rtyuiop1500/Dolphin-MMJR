@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="@dimen/spacing_medlarge"
-        android:background="@drawable/button_gradient"
+        android:background="@drawable/button_purple_gradient"
         android:text="@string/user_data_open_system_file_manager"
         android:textColor="@android:color/white"
         app:layout_constraintBottom_toBottomOf="parent"

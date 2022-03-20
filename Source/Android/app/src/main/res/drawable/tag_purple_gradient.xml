@@ -3,13 +3,11 @@
     <item android:state_activated="true">
         <shape>
             <solid android:color="@android:color/transparent"/>
-            <corners android:radius="6dp" />
         </shape>
     </item>
     <item android:state_enabled="false">
         <shape>
             <solid android:color="@color/card_unselected"/>
-            <corners android:radius="6dp" />
         </shape>
     </item>
     <item>
@@ -22,7 +20,6 @@
                         android:startColor="@color/purple_primary_dark"
                         android:centerColor="@color/purple_accent"
                         android:endColor="@color/purple_primary_dark" />
-                    <corners android:radius="6dp" />
                 </shape>
             </item>
         </ripple>

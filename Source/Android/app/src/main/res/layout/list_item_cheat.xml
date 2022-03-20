@@ -12,7 +12,7 @@
         android:id="@+id/checkbox"
         android:layout_width="48dp"
         android:layout_height="64dp"
-        android:buttonTint="#9C27B0"
+        android:buttonTint="@color/purple_accent"
         android:focusable="true"
         android:gravity="center"
         android:nextFocusLeft="@id/root"

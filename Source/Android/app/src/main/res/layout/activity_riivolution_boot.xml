@@ -54,7 +54,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="@dimen/spacing_large"
         android:text="@string/riivolution_start"
-        android:background="@drawable/button_gradient"
+        android:background="@drawable/button_red_gradient"
         android:textColor="#ffffff"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

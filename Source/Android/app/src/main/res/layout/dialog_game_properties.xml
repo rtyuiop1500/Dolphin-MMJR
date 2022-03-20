@@ -145,14 +145,14 @@
             android:showDividers="middle">
 
             <Button
-                android:id="@+id/properties_convert"
+                android:id="@+id/properties_start_with_riivolution"
                 style="@style/Widget.AppCompat.Button.Colored"
                 android:layout_width="0dp"
                 android:layout_height="38dp"
                 android:layout_weight="1"
-                android:background="@drawable/button_red_gradient"
+                android:background="@drawable/button_purple_gradient"
                 android:stateListAnimator="@null"
-                android:text="@string/properties_convert"
+                android:text="@string/properties_start_with_riivolution"
                 android:textAllCaps="false"
                 android:textColor="@android:color/white" />
 
@@ -162,7 +162,7 @@
                 android:layout_width="0dp"
                 android:layout_height="38dp"
                 android:layout_weight="1"
-                android:background="@drawable/button_red_gradient"
+                android:background="@drawable/button_purple_gradient"
                 android:stateListAnimator="@null"
                 android:text="@string/properties_ini_editor"
                 android:textAllCaps="false"
@@ -179,14 +179,14 @@
             android:showDividers="middle">
 
             <Button
-                android:id="@+id/properties_start_with_riivolution"
+                android:id="@+id/properties_convert"
                 style="@style/Widget.AppCompat.Button.Colored"
                 android:layout_width="0dp"
                 android:layout_height="38dp"
                 android:layout_weight="1"
-                android:background="@drawable/button_blue_gradient"
+                android:background="@drawable/button_red_gradient"
                 android:stateListAnimator="@null"
-                android:text="@string/properties_start_with_riivolution"
+                android:text="@string/properties_convert"
                 android:textAllCaps="false"
                 android:textColor="@android:color/white" />
 
