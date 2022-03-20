@@ -59,13 +59,13 @@
                 android:id="@+id/menu_quicksave"
                 android:text="@string/emulation_quicksave"
                 style="@style/InGameMenuOption"
-                android:visibility="gone"/>
+                android:visibility="visible"/>
 
             <Button
                 android:id="@+id/menu_quickload"
                 android:text="@string/emulation_quickload"
                 style="@style/InGameMenuOption"
-                android:visibility="gone"/>
+                android:visibility="visible"/>
 
             <Button
                 android:id="@+id/menu_emulation_save_root"

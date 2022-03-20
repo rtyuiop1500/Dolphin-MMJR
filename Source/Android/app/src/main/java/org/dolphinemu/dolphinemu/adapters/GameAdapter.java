@@ -87,6 +87,13 @@ public final class GameAdapter extends RecyclerView.Adapter<GameViewHolder> impl
             countryNames[gameFile.getCountry()]);
     holder.textPlatform.setText(platform);
 
+		if (GameFileCacheManager.findSecondDisc(gameFile) != null)
+		{
+			holder.textGameCaption
+				.setText(context.getString(R.string.disc_number, gameFile.getDiscNumber() + 1));
+			holder.textGameCaption.setVisibility(View.VISIBLE);
+		}
+
     holder.gameFile = gameFile;
   }
 

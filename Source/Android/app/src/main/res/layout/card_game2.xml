@@ -3,6 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_margin="8dp"
     android:clickable="true"
     android:focusable="true"
@@ -17,7 +18,8 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:adjustViewBounds="true"
-        android:src="@drawable/no_banner" />
+        android:src="@drawable/no_banner"
+        tools:ignore="ContentDescription"/>
 
     <TextView
         android:id="@+id/text_game_title"
@@ -31,10 +33,33 @@
         android:layout_height="wrap_content"
         android:visibility="gone" />
 
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="3dp">
+
+
+    <TextView
+        android:id="@+id/text_game_caption"
+        style="@android:style/TextAppearance.Material.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:paddingVertical="2dp"
+        android:paddingHorizontal="3dp"
+        android:background="@android:color/holo_red_dark"
+        android:visibility="gone"
+        tools:visibility="visible"
+        tools:text="Disc 1" />
+
     <TextView
         android:id="@+id/text_company"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone" />
+
+    </LinearLayout>
 
 </androidx.cardview.widget.CardView>

@@ -67,6 +67,13 @@
                 android:textColor="@android:color/white"
                 tools:text="The Legend of Zelda: The Wind Waker" />
 
+            <TextView
+                android:id="@+id/text_game_caption"
+                style="@android:style/TextAppearance.Material.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                tools:visibility="gone"/>
+
         </LinearLayout>
 
     </RelativeLayout>
