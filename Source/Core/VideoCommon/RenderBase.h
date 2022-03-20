@@ -54,7 +54,6 @@ enum class AspectMode;
 
 namespace VideoCommon
 {
-class RasterFont;
 class PostProcessing;
 }  // namespace VideoCommon
 
@@ -204,8 +203,6 @@ public:
   // Random utilities
   void SaveScreenshot(std::string filename);
   void DrawDebugText();
-  void UpdateDebugTitle(const std::string& title) { m_debug_title_text = std::move(title); }
-  void RenderText(const std::string& text, int left, int top, u32 color);
 
   virtual void ClearScreen(const MathUtil::Rectangle<int>& rc, bool colorEnable, bool alphaEnable,
                            bool zEnable, u32 color, u32 z);
@@ -253,6 +250,16 @@ public:
 
   virtual std::unique_ptr<VideoCommon::AsyncShaderCompiler> CreateAsyncShaderCompiler();
 
+  // Returns a lock for the ImGui mutex, enabling data structures to be modified from outside.
+  // Use with care, only non-drawing functions should be called from outside the video thread,
+  // as the drawing is tied to a "frame".
+  std::unique_lock<std::mutex> GetImGuiLock();
+
+  // Begins/presents a "UI frame". UI frames do not draw any of the console XFB, but this could
+  // change in the future.
+  void BeginUIFrame();
+  void EndUIFrame();
+
   // Will forcibly reload all textures on the next swap
   void ForceReloadTextures();
 
@@ -274,6 +281,23 @@ protected:
   bool CalculateTargetSize();
 
   void CheckForConfigChanges();
+
+  // ImGui initialization depends on being able to create textures and pipelines, so do it last.
+  bool InitializeImGui();
+
+  // Recompiles ImGui pipeline - call when stereo mode changes.
+  bool RecompileImGuiPipeline();
+
+  // Sets up ImGui state for the next frame.
+  // This function itself acquires the ImGui lock, so it should not be held.
+  void BeginImGuiFrame();
+
+  // Destroys all ImGui GPU resources, must do before shutdown.
+  void ShutdownImGui();
+
+  // Renders ImGui windows to the currently-bound framebuffer.
+  // Should be called with the ImGui lock held.
+  void DrawImGui();
 
   virtual std::unique_ptr<BoundingBox> CreateBoundingBox() const = 0;
 
@@ -308,6 +332,13 @@ protected:
   Common::Flag m_surface_changed;
   Common::Flag m_surface_resized;
   std::mutex m_swap_mutex;
+
+  // ImGui resources.
+  std::unique_ptr<NativeVertexFormat> m_imgui_vertex_format;
+  std::vector<std::unique_ptr<AbstractTexture>> m_imgui_textures;
+  std::unique_ptr<AbstractPipeline> m_imgui_pipeline;
+  std::mutex m_imgui_mutex;
+  u64 m_imgui_last_frame_time;
 
 private:
   std::tuple<int, int> CalculateOutputDimensions(int width, int height) const;
@@ -358,10 +389,6 @@ private:
   u32 m_last_xfb_width = 0;
   u32 m_last_xfb_stride = 0;
   u32 m_last_xfb_height = 0;
-
-  // fps text
-  std::unique_ptr<VideoCommon::RasterFont> m_raster_font;
-  std::string m_debug_title_text;
 
   std::unique_ptr<BoundingBox> m_bounding_box;
 

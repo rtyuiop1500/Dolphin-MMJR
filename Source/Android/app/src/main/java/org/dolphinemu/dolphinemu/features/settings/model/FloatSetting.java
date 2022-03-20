@@ -2,14 +2,25 @@
 
 package org.dolphinemu.dolphinemu.features.settings.model;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 public enum FloatSetting implements AbstractFloatSetting
 {
   // These entries have the same names and order as in C++, just for consistency.
 
-  GFX_FONT_SCALE(Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS,"FontScale", 1.30f),
-  GFX_DISPLAY_SCALE(Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS,"DisplayScale", 1.0f),
+  GFX_FONT_SCALE(Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS, "FontScale", 2.50f),
+  GFX_DISPLAY_SCALE(Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS, "DisplayScale", 1.0f),
   MAIN_EMULATION_SPEED(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "EmulationSpeed", 1.0f),
   MAIN_OVERCLOCK(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "Overclock", 1.0f);
+
+  private static final FloatSetting[] NOT_RUNTIME_EDITABLE_ARRAY = new FloatSetting[]{
+          GFX_FONT_SCALE
+  };
+
+  private static final Set<FloatSetting> NOT_RUNTIME_EDITABLE =
+          new HashSet<>(Arrays.asList(NOT_RUNTIME_EDITABLE_ARRAY));
 
   private final String mFile;
   private final String mSection;
@@ -36,6 +47,12 @@ public enum FloatSetting implements AbstractFloatSetting
   @Override
   public boolean isRuntimeEditable()
   {
+    for (FloatSetting setting : NOT_RUNTIME_EDITABLE)
+    {
+      if (setting == this)
+        return false;
+    }
+
     return NativeConfig.isSettingSaveable(mFile, mSection, mKey);
   }
 

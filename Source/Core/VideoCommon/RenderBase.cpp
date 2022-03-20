@@ -22,7 +22,7 @@
 #include <tuple>
 
 #include <fmt/format.h>
-#include <Core/Config/MainSettings.h>
+#include <imgui.h>
 
 #include "Common/Assert.h"
 #include "Common/ChunkFile.h"
@@ -39,6 +39,7 @@
 #include "Common/Timer.h"
 
 #include "Core/Config/NetplaySettings.h"
+#include <Core/Config/MainSettings.h>
 #include "Core/Config/SYSCONFSettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
@@ -83,7 +84,6 @@
 #include "VideoCommon/VideoCommon.h"
 #include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/XFMemory.h"
-#include "VideoCommon/RasterFont.h"
 
 std::unique_ptr<Renderer> g_renderer;
 
@@ -118,8 +118,7 @@ Renderer::~Renderer() = default;
 
 bool Renderer::Initialize()
 {
-  m_raster_font = std::make_unique<VideoCommon::RasterFont>();
-  if (!m_raster_font->Initialize(m_backbuffer_format))
+  if (!InitializeImGui())
     return false;
 
   m_post_processor = std::make_unique<VideoCommon::PostProcessing>();
@@ -144,8 +143,8 @@ void Renderer::Shutdown()
   // First stop any framedumping, which might need to dump the last xfb frame. This process
   // can require additional graphics sub-systems so it needs to be done first
   ShutdownFrameDumping();
+  ShutdownImGui();
   m_post_processor.reset();
-  m_raster_font.reset();
   m_bounding_box.reset();
 }
 
@@ -532,6 +531,7 @@ void Renderer::CheckForConfigChanges()
   // bits changes requires recompiling our post processing pipeline for rendering the UI.
   if (changed_bits)
   {
+    RecompileImGuiPipeline();
     m_post_processor->RecompilePipeline();
   }
 }
@@ -539,20 +539,90 @@ void Renderer::CheckForConfigChanges()
 // Create On-Screen-Messages
 void Renderer::DrawDebugText()
 {
-  const Core::PerformanceStatistics& pstats = Core::GetPerformanceStatistics();
-  if (pstats.Speed < 95)
-  {
-    RenderText(m_debug_title_text, 10, 18, 0xFFFF0000); // red
-  }
-  else
-  {
-    RenderText(m_debug_title_text, 10, 18, 0xFFFF0099); // purple
-  }
-}
+  const auto& config = SConfig::GetInstance();
 
-void Renderer::RenderText(const std::string& text, int left, int top, u32 color)
-{
-  m_raster_font->Draw(text, left, top, color);
+  if (g_ActiveConfig.bShowFPS)
+  {
+    // Position in the top-left corner of the screen.
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - (20.0f * g_ActiveConfig.fFontScale),
+                            5.0f * g_ActiveConfig.fFontScale),
+                            ImGuiCond_Always, ImVec2(9.5f, 0.0f));
+    ImGui::SetNextWindowSize(ImVec2(.0f, 28.f * g_ActiveConfig.fFontScale));
+    ImGui::SetNextWindowBgAlpha(.6f);
+
+    if (ImGui::Begin("FPS", nullptr,
+                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs |
+                     ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNav |
+                     ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing))
+    {
+      const Core::PerformanceStatistics& pstats = Core::GetPerformanceStatistics();
+      if (pstats.Speed < 95)
+      {
+        ImGui::TextColored(ImVec4(0.992f, 0.050f, 0.058f, 1.0f),
+                           "|MMJR| FPS: %.0f | VPS:%.0f | Speed:%.0f%% |",
+                           pstats.FPS, pstats.VPS, pstats.Speed); // red
+      }
+      else
+      {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 1.0f, 1.0f),
+                           "|MMJR| FPS: %.0f | VPS:%.0f | Speed:%.0f%% |",
+                           pstats.FPS, pstats.VPS, pstats.Speed); // purple
+      }
+    }
+    ImGui::End();
+  }
+
+  const bool show_movie_window =
+          config.m_ShowFrameCount | config.m_ShowLag | config.m_ShowInputDisplay | config.m_ShowRTC;
+  if (show_movie_window)
+  {
+    // Position under the FPS display.
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - (10.0f * m_backbuffer_scale),
+                                   50.0f * m_backbuffer_scale),
+                            ImGuiCond_FirstUseEver, ImVec2(1.0f, 0.0f));
+    ImGui::SetNextWindowSizeConstraints(
+            ImVec2(150.0f * m_backbuffer_scale, 20.0f * m_backbuffer_scale),
+            ImGui::GetIO().DisplaySize);
+    if (ImGui::Begin("Movie", nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+    {
+      if (Movie::IsPlayingInput())
+      {
+        ImGui::Text("Frame: %" PRIu64 " / %" PRIu64, Movie::GetCurrentFrame(),
+                    Movie::GetTotalFrames());
+        ImGui::Text("Input: %" PRIu64 " / %" PRIu64, Movie::GetCurrentInputCount(),
+                    Movie::GetTotalInputCount());
+      }
+      else if (config.m_ShowFrameCount)
+      {
+        ImGui::Text("Frame: %" PRIu64, Movie::GetCurrentFrame());
+        ImGui::Text("Input: %" PRIu64, Movie::GetCurrentInputCount());
+      }
+      if (SConfig::GetInstance().m_ShowLag)
+        ImGui::Text("Lag: %" PRIu64 "\n", Movie::GetCurrentLagCount());
+      if (SConfig::GetInstance().m_ShowInputDisplay)
+        ImGui::TextUnformatted(Movie::GetInputDisplay().c_str());
+      if (SConfig::GetInstance().m_ShowRTC)
+        ImGui::TextUnformatted(Movie::GetRTCDisplay().c_str());
+    }
+    ImGui::End();
+  }
+
+  if (g_ActiveConfig.bOverlayStats)
+    g_stats.Display();
+
+  if (g_ActiveConfig.bShowNetPlayMessages && g_netplay_chat_ui)
+    g_netplay_chat_ui->Display();
+
+  if (Config::Get(Config::NETPLAY_GOLF_MODE_OVERLAY) && g_netplay_golf_ui)
+    g_netplay_golf_ui->Display();
+
+  if (g_ActiveConfig.bOverlayProjStats)
+    g_stats.DisplayProj();
+
+  const std::string profile_output = Common::Profiler::ToString();
+  if (!profile_output.empty())
+    ImGui::TextUnformatted(profile_output.c_str());
 }
 
 float Renderer::CalculateDrawAspectRatio() const
@@ -861,6 +931,226 @@ std::tuple<int, int> Renderer::CalculateOutputDimensions(int width, int height) 
   return std::make_tuple(width, height);
 }
 
+bool Renderer::InitializeImGui()
+{
+  if (!ImGui::CreateContext())
+  {
+    PanicAlertFmt("Creating ImGui context failed");
+    return false;
+  }
+
+  // Don't create an ini file. TODO: Do we want this in the future?
+  ImGui::GetIO().IniFilename = nullptr;
+  ImGui::GetIO().DisplayFramebufferScale.x = g_ActiveConfig.fFontScale;
+  ImGui::GetIO().DisplayFramebufferScale.y = g_ActiveConfig.fFontScale;
+  ImGui::GetIO().FontGlobalScale = g_ActiveConfig.fFontScale;
+  ImGui::GetStyle().ScaleAllSizes(g_ActiveConfig.fFontScale);
+  ImGui::GetStyle().WindowRounding = 7.0f;
+
+  PortableVertexDeclaration vdecl = {};
+  vdecl.position = {VAR_FLOAT, 2, offsetof(ImDrawVert, pos), true, false};
+  vdecl.texcoords[0] = {VAR_FLOAT, 2, offsetof(ImDrawVert, uv), true, false};
+  vdecl.colors[0] = {VAR_UNSIGNED_BYTE, 4, offsetof(ImDrawVert, col), true, false};
+  vdecl.stride = sizeof(ImDrawVert);
+  m_imgui_vertex_format = CreateNativeVertexFormat(vdecl);
+  if (!m_imgui_vertex_format)
+  {
+    PanicAlertFmt("Failed to create ImGui vertex format");
+    return false;
+  }
+
+  // Font texture(s).
+  {
+    ImGuiIO& io = ImGui::GetIO();
+    u8* font_tex_pixels;
+    int font_tex_width, font_tex_height;
+    io.Fonts->GetTexDataAsRGBA32(&font_tex_pixels, &font_tex_width, &font_tex_height);
+
+    TextureConfig font_tex_config(font_tex_width, font_tex_height, 1, 1, 1,
+                                  AbstractTextureFormat::RGBA8, 0);
+    std::unique_ptr<AbstractTexture> font_tex = CreateTexture(font_tex_config);
+    if (!font_tex)
+    {
+      PanicAlertFmt("Failed to create ImGui texture");
+      return false;
+    }
+    font_tex->Load(0, font_tex_width, font_tex_height, font_tex_width, font_tex_pixels,
+                   sizeof(u32) * font_tex_width * font_tex_height);
+
+    io.Fonts->TexID = font_tex.get();
+
+    m_imgui_textures.push_back(std::move(font_tex));
+  }
+
+  if (!RecompileImGuiPipeline())
+    return false;
+
+  m_imgui_last_frame_time = Common::Timer::GetTimeUs();
+  BeginImGuiFrame();
+  return true;
+}
+
+bool Renderer::RecompileImGuiPipeline()
+{
+  std::unique_ptr<AbstractShader> vertex_shader = CreateShaderFromSource(
+          ShaderStage::Vertex, FramebufferShaderGen::GenerateImGuiVertexShader());
+  std::unique_ptr<AbstractShader> pixel_shader =
+          CreateShaderFromSource(ShaderStage::Pixel, FramebufferShaderGen::GenerateImGuiPixelShader());
+  if (!vertex_shader || !pixel_shader)
+  {
+    PanicAlertFmt("Failed to compile ImGui shaders");
+    return false;
+  }
+
+  AbstractPipelineConfig pconfig = {};
+  pconfig.vertex_format = m_imgui_vertex_format.get();
+  pconfig.vertex_shader = vertex_shader.get();
+  pconfig.pixel_shader = pixel_shader.get();
+  pconfig.rasterization_state = RenderState::GetNoCullRasterizationState(PrimitiveType::Triangles);
+  pconfig.depth_state = RenderState::GetNoDepthTestingDepthState();
+  pconfig.blending_state = RenderState::GetNoBlendingBlendState();
+  pconfig.blending_state.blendenable = true;
+  pconfig.blending_state.srcfactor = SrcBlendFactor::SrcAlpha;
+  pconfig.blending_state.dstfactor = DstBlendFactor::InvSrcAlpha;
+  pconfig.blending_state.srcfactoralpha = SrcBlendFactor::Zero;
+  pconfig.blending_state.dstfactoralpha = DstBlendFactor::One;
+  pconfig.framebuffer_state.color_texture_format = m_backbuffer_format;
+  pconfig.framebuffer_state.depth_texture_format = AbstractTextureFormat::Undefined;
+  pconfig.framebuffer_state.samples = 1;
+  pconfig.framebuffer_state.per_sample_shading = false;
+  pconfig.usage = AbstractPipelineUsage::Utility;
+  m_imgui_pipeline = CreatePipeline(pconfig);
+  if (!m_imgui_pipeline)
+  {
+    PanicAlertFmt("Failed to create ImGui pipeline");
+    return false;
+  }
+
+  return true;
+}
+
+void Renderer::ShutdownImGui()
+{
+  ImGui::EndFrame();
+  ImGui::DestroyContext();
+  m_imgui_pipeline.reset();
+  m_imgui_vertex_format.reset();
+  m_imgui_textures.clear();
+}
+
+void Renderer::BeginImGuiFrame()
+{
+  std::unique_lock<std::mutex> imgui_lock(m_imgui_mutex);
+
+  const u64 current_time_us = Common::Timer::GetTimeUs();
+  const u64 time_diff_us = current_time_us - m_imgui_last_frame_time;
+  const float time_diff_secs = static_cast<float>(time_diff_us / 1000000.0);
+  m_imgui_last_frame_time = current_time_us;
+
+  // Update I/O with window dimensions.
+  ImGuiIO& io = ImGui::GetIO();
+  io.DisplaySize =
+          ImVec2(static_cast<float>(m_backbuffer_width), static_cast<float>(m_backbuffer_height));
+  io.DeltaTime = time_diff_secs;
+
+  ImGui::NewFrame();
+}
+
+void Renderer::DrawImGui()
+{
+  ImDrawData* draw_data = ImGui::GetDrawData();
+  if (!draw_data)
+    return;
+
+  SetViewport(0.0f, 0.0f, static_cast<float>(m_backbuffer_width),
+              static_cast<float>(m_backbuffer_height), 0.0f, 1.0f);
+
+  // Uniform buffer for draws.
+  struct ImGuiUbo
+  {
+      float u_rcp_viewport_size_mul2[2];
+      float padding[2];
+  };
+  ImGuiUbo ubo = {{1.0f / m_backbuffer_width * 2.0f, 1.0f / m_backbuffer_height * 2.0f}};
+
+  // Set up common state for drawing.
+  SetPipeline(m_imgui_pipeline.get());
+  SetSamplerState(0, RenderState::GetPointSamplerState());
+  g_vertex_manager->UploadUtilityUniforms(&ubo, sizeof(ubo));
+
+  for (int i = 0; i < draw_data->CmdListsCount; i++)
+  {
+    const ImDrawList* cmdlist = draw_data->CmdLists[i];
+    if (cmdlist->VtxBuffer.empty() || cmdlist->IdxBuffer.empty())
+      return;
+
+    u32 base_vertex, base_index;
+    g_vertex_manager->UploadUtilityVertices(cmdlist->VtxBuffer.Data, sizeof(ImDrawVert),
+                                            cmdlist->VtxBuffer.Size, cmdlist->IdxBuffer.Data,
+                                            cmdlist->IdxBuffer.Size, &base_vertex, &base_index);
+
+    for (const ImDrawCmd& cmd : cmdlist->CmdBuffer)
+    {
+      if (cmd.UserCallback)
+      {
+        cmd.UserCallback(cmdlist, &cmd);
+        continue;
+      }
+
+      SetScissorRect(ConvertFramebufferRectangle(
+              MathUtil::Rectangle<int>(
+                      static_cast<int>(cmd.ClipRect.x), static_cast<int>(cmd.ClipRect.y),
+                      static_cast<int>(cmd.ClipRect.z), static_cast<int>(cmd.ClipRect.w)),
+              m_current_framebuffer));
+      SetTexture(0, reinterpret_cast<const AbstractTexture*>(cmd.TextureId));
+      DrawIndexed(base_index, cmd.ElemCount, base_vertex);
+      base_index += cmd.ElemCount;
+    }
+  }
+
+  // Some capture software (such as OBS) hooks SwapBuffers and uses glBlitFramebuffer to copy our
+  // back buffer just before swap. Because glBlitFramebuffer honors the scissor test, the capture
+  // itself will be clipped to whatever bounds were last set by ImGui, resulting in a rather useless
+  // capture whenever any ImGui windows are open. We'll reset the scissor rectangle to the entire
+  // viewport here to avoid this problem.
+  SetScissorRect(ConvertFramebufferRectangle(
+          MathUtil::Rectangle<int>(0, 0, m_backbuffer_width, m_backbuffer_height),
+          m_current_framebuffer));
+}
+
+std::unique_lock<std::mutex> Renderer::GetImGuiLock()
+{
+  return std::unique_lock<std::mutex>(m_imgui_mutex);
+}
+
+void Renderer::BeginUIFrame()
+{
+  if (IsHeadless())
+    return;
+
+  BeginUtilityDrawing();
+  BindBackbuffer({0.0f, 0.0f, 0.0f, 1.0f});
+}
+
+void Renderer::EndUIFrame()
+{
+  {
+    auto lock = GetImGuiLock();
+    ImGui::Render();
+  }
+
+  if (!IsHeadless())
+  {
+    DrawImGui();
+
+    std::lock_guard<std::mutex> guard(m_swap_mutex);
+    PresentBackbuffer();
+    EndUtilityDrawing();
+  }
+
+  BeginImGuiFrame();
+}
+
 void Renderer::ForceReloadTextures()
 {
   m_force_reload_textures.Set();
@@ -957,6 +1247,15 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
       const bool is_duplicate_frame = xfb_entry->id == m_last_xfb_id;
       m_last_xfb_id = xfb_entry->id;
 
+      // Render any UI elements to the draw list.
+      {
+        auto lock = GetImGuiLock();
+
+        DrawDebugText();
+        OSD::DrawMessages();
+        ImGui::Render();
+      }
+
       // Since we use the common pipelines here and draw vertices if a batch is currently being
       // built by the vertex loader, we end up trampling over its pointer, as we share the buffer
       // with the loader, and it has not been unmapped yet. Force a pipeline flush to avoid this.
@@ -978,10 +1277,7 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
         AdjustRectanglesToFitBounds(render_target_rc, render_source_rc);
         RenderXFBToScreen(render_target_rc, xfb_entry->texture.get(), render_source_rc);
 
-        // HUD
-        m_raster_font->Prepare();
-        DrawDebugText();
-        OSD::DrawMessages();
+        DrawImGui();
 
         // Present to the window system.
         {
@@ -1014,6 +1310,7 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
 
       g_shader_cache->RetrieveAsyncShaders();
       g_vertex_manager->OnEndFrame();
+      BeginImGuiFrame();
 
       // We invalidate the pipeline object at the start of the frame.
       // This is for the rare case where only a single pipeline configuration is used,

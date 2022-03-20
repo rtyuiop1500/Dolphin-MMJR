@@ -66,8 +66,6 @@ add_library(videocommon
   PixelShaderManager.h
   PostProcessing.cpp
   PostProcessing.h
-  RasterFont.cpp
-  RasterFont.h
   RenderBase.cpp
   RenderBase.h
   RenderState.cpp

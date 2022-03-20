@@ -560,6 +560,11 @@ static void EmuThread(std::unique_ptr<BootParameters> boot, WindowSystemInfo wsi
   }
   Common::ScopeGuard video_guard{[] { g_video_backend->Shutdown(); }};
 
+  // Render a single frame without anything on it to clear the screen.
+  // This avoids the game list being displayed while the core is finishing initializing.
+  g_renderer->BeginUIFrame();
+  g_renderer->EndUIFrame();
+
   if (cpu_info.HTT)
     Config::SetBaseOrCurrent(Config::MAIN_DSP_THREAD, cpu_info.num_cores > 4);
   else
@@ -918,25 +923,65 @@ void UpdateTitle(u32 ElapseTime)
   if (ElapseTime == 0)
     ElapseTime = 1;
 
-  //float FPS = s_drawn_frame.load() * 1000.0f / ElapseTime;
-  //float VPS = s_drawn_video.load() * 1000.0f / ElapseTime;
-  //float Speed = VPS * 100.0f / VideoInterface::GetTargetRefreshRate();
-  perf_stats.FPS = s_drawn_frame.load() * 1000.0f / ElapseTime;
-  perf_stats.VPS = s_drawn_video.load() * 1000.0f / ElapseTime;
-  perf_stats.Speed = perf_stats.VPS * 100.0f / VideoInterface::GetTargetRefreshRate();
+  perf_stats.FPS = (float)(s_drawn_frame.load() * 1000.0 / ElapseTime);
+  perf_stats.VPS = (float)(s_drawn_video.load() * 1000.0 / ElapseTime);
+  perf_stats.Speed = (float)(s_drawn_video.load() * (100 * 1000.0) /
+                        (VideoInterface::GetTargetRefreshRate() * ElapseTime));
+
+  // Settings are shown the same for both extended and summary info
+  const std::string SSettings = fmt::format(
+          "{} {} | {} | {}", PowerPC::GetCPUName(), _CoreParameter.bCPUThread ? "DC" : "SC",
+          g_video_backend->GetDisplayName(), Config::Get(Config::MAIN_DSP_HLE) ? "HLE" : "LLE");
 
   std::string S_FPS;
-
-  if (g_ActiveConfig.bShowFPS && !g_ActiveConfig.bShowActiveTitle)
+  if (Movie::IsPlayingInput())
   {
-    S_FPS = fmt::format("|MMJR| FPS: {:.0f} | VPS:{:.0f} | Speed:{:.0f}% |",
-                        perf_stats.FPS, perf_stats.VPS, perf_stats.Speed);
+    S_FPS = fmt::format("Input: {}/{} - VI: {}/{} - FPS: {:.0f} - VPS: {:.0f} - {:.0f}%",
+                       Movie::GetCurrentInputCount(), Movie::GetTotalInputCount(),
+                       Movie::GetCurrentFrame(), Movie::GetTotalFrames(), perf_stats.FPS,
+                       perf_stats.VPS, perf_stats.Speed);
   }
-  else if (g_ActiveConfig.bShowActiveTitle)
+  else if (Movie::IsRecordingInput())
   {
-    S_FPS = fmt::format("|MMJR| FPS: {:.0f} | VPS:{:.0f} | Speed:{:.0f}% | {} |",
-                        perf_stats.FPS, perf_stats.VPS, perf_stats.Speed,
-                        SConfig::GetInstance().GetTitleDescription());
+    S_FPS = fmt::format("Input: {} - VI: {} - FPS: {:.0f} - VPS: {:.0f} - {:.0f}%",
+                       Movie::GetCurrentInputCount(), Movie::GetCurrentFrame(), perf_stats.FPS,
+                       perf_stats.VPS, perf_stats.Speed);
+  }
+  else
+  {
+    S_FPS = fmt::format("FPS: {:.0f} - VPS: {:.0f} - {:.0f}%", perf_stats. FPS,
+                       perf_stats.VPS, perf_stats.Speed);
+    if (SConfig::GetInstance().m_InterfaceExtendedFPSInfo)
+    {
+      // Use extended or summary information. The summary information does not print the ticks data,
+      // that's more of a debugging interest, it can always be optional of course if someone is
+      // interested.
+      static u64 ticks = 0;
+      static u64 idleTicks = 0;
+      u64 newTicks = CoreTiming::GetTicks();
+      u64 newIdleTicks = CoreTiming::GetIdleTicks();
+
+      u64 diff = (newTicks - ticks) / 1000000;
+      u64 idleDiff = (newIdleTicks - idleTicks) / 1000000;
+
+      ticks = newTicks;
+      idleTicks = newIdleTicks;
+
+      float TicksPercentage =
+              (float)diff / (float)(SystemTimers::GetTicksPerSecond() / 1000000) * 100;
+
+      S_FPS += fmt::format(" | CPU: ~{} MHz [Real: {} + IdleSkip: {}] / {} MHz (~{:3.0f}%)", diff,
+                          diff - idleDiff, idleDiff, SystemTimers::GetTicksPerSecond() / 1000000,
+                          TicksPercentage);
+    }
+  }
+
+  std::string message = fmt::format("{} | {} | {}", Common::scm_rev_str, SSettings, S_FPS);
+  if (g_ActiveConfig.bShowActiveTitle)
+  {
+    const std::string& title = SConfig::GetInstance().GetTitleDescription();
+    if (!title.empty())
+      message += " | " + title;
   }
 
   // Update the audio timestretcher with the current speed
@@ -946,7 +991,7 @@ void UpdateTitle(u32 ElapseTime)
     pMixer->UpdateSpeed(perf_stats.Speed / 100);
   }
 
-  g_renderer->UpdateDebugTitle(S_FPS);
+  Host_UpdateTitle(message);
 }
 
 void Shutdown()

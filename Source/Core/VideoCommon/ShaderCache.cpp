@@ -17,6 +17,8 @@
 #include "VideoCommon/VideoCommon.h"
 #include "VideoCommon/VideoConfig.h"
 
+#include <imgui.h>
+
 std::unique_ptr<VideoCommon::ShaderCache> g_shader_cache;
 
 namespace VideoCommon
@@ -138,7 +140,26 @@ void ShaderCache::WaitForAsyncCompiler()
   while (m_async_shader_compiler->HasPendingWork() || m_async_shader_compiler->HasCompletedWork())
   {
     m_async_shader_compiler->WaitUntilCompletion([](size_t completed, size_t total) {
-    // nothing...
+    g_renderer->BeginUIFrame();
+
+      const float scale = ImGui::GetIO().DisplayFramebufferScale.x;
+
+      ImGui::SetNextWindowSize(ImVec2(400.0f * scale, 50.0f * scale), ImGuiCond_Always);
+      ImGui::SetNextWindowPosCenter(ImGuiCond_Always);
+      if (ImGui::Begin(Common::GetStringT("Compiling Shaders").c_str(), nullptr,
+                       ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs |
+                           ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNav |
+                           ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing))
+      {
+        ImGui::Text("Compiling shaders: %zu/%zu", completed, total);
+        ImGui::ProgressBar(static_cast<float>(completed) /
+                               static_cast<float>(std::max(total, static_cast<size_t>(1))),
+                           ImVec2(-1.0f, 0.0f), "");
+      }
+      ImGui::End();
+
+      g_renderer->EndUIFrame();
     });
     m_async_shader_compiler->RetrieveWorkItems();
   }

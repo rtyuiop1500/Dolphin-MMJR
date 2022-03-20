@@ -10,19 +10,6 @@
 
 namespace OSD
 {
-struct Message
-{
-  Message() {}
-  Message(const std::string& text_, u32 timestamp_, u32 color_)
-          : text(text_), timestamp(timestamp_), color(color_)
-  {
-  }
-  std::string text;
-  u32 timestamp;
-  u32 color;
-};
-
-
 enum class MessageType
 {
   NetPlayPing,
@@ -55,8 +42,8 @@ constexpr u32 VERY_LONG = 10000;
 
 // On-screen message display (colored yellow by default)
 void AddMessage(std::string message, u32 ms = Duration::SHORT, u32 argb = Color::YELLOW);
-void AddTypedMessage(MessageType type, const std::string& message, u32 ms = Duration::SHORT, u32 rgba = Color::YELLOW);
-void DrawMessage(const Message& msg, int top, int left, int time_left);  // draw one message
+void AddTypedMessage(MessageType type, std::string message, u32 ms = Duration::SHORT,
+                     u32 argb = Color::YELLOW);
 
 // Draw the current messages on the screen. Only call once per frame.
 void DrawMessages();
