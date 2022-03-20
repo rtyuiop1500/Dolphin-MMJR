@@ -4,7 +4,7 @@ An Android-only performance-focused dolphin fork, rebased on top of latest dolph
 
 Grab the latest build in the [releases](https://github.com/Bankaimaster999/Dolphin-MMJR/releases) section, or check for new version in the in-app updater. Older **savestates are not compatible** with versions after 11485. We kindly ask you to avoid misusing GitHub Issues and Pull Requests.
 
-If for some reason you prefer the old builds over the new one; you can get it on the [releases](https://github.com/Bankaimaster999/Dolphin-MMJR/releases) page and I made a backup branch of the code as well. The former builds will have their names as "Dolphin |MMJR| v1.0-XXXXX" ... whereas all newer version will just be "Dolphin |MMJR| - XXXXX" going forward.
+If for some reason you prefer the old builds over the new one; you can get it on the [releases](https://github.com/Bankaimaster999/Dolphin-MMJR/releases) page and I made a backup branch of the code as well.
 
 This fork wouldn't be possible without the crazy amount of work that developers much more skilled than us put into Dolphin.
 
