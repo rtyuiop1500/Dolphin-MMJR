@@ -10,6 +10,7 @@ import android.text.TextUtils;
 
 import org.dolphinemu.dolphinemu.NativeLibrary;
 import org.dolphinemu.dolphinemu.R;
+import org.dolphinemu.dolphinemu.activities.UserDataActivity;
 import org.dolphinemu.dolphinemu.features.settings.model.AbstractIntSetting;
 import org.dolphinemu.dolphinemu.features.settings.model.AbstractStringSetting;
 import org.dolphinemu.dolphinemu.features.settings.model.AdHocBooleanSetting;
@@ -299,6 +300,8 @@ public final class SettingsFragmentPresenter
             R.string.updater_check_startup_description));
     sl.add(new HeaderSetting(mContext, R.string.graphics_more_settings, 0));
     sl.add(new SubmenuSetting(mContext, R.string.log_submenu, 0, MenuTag.CONFIG_LOG));
+    sl.add(new RunRunnable(mContext, R.string.user_data_submenu, 0, 0, 0,
+            () -> UserDataActivity.launch(mContext)));
   }
 
   private void addAudioSettings(ArrayList<SettingsItem> sl)

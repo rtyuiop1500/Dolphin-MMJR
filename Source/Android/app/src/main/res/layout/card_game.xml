@@ -21,31 +21,12 @@
             android:id="@+id/image_game_screen"
             android:layout_width="96dp"
             android:layout_height="match_parent"
-            android:layout_alignTop="@id/game_info"
             android:layout_alignBottom="@id/game_info"
             android:layout_alignParentStart="true"
+            android:layout_alignTop="@id/game_info"
             android:layout_gravity="start|center"
             android:scaleType="centerCrop"
-
             android:src="@drawable/no_banner" />
-
-        <TextView
-            android:id="@+id/text_game_caption"
-            style="@android:style/TextAppearance.Material.Caption"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:textSize="1px"
-            android:visibility="gone"
-            tools:visibility="gone"/>
-
-        <TextView
-            android:id="@+id/text_game_country"
-            style="@android:style/TextAppearance.Material.Caption"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            tools:visibility="gone"
-            android:visibility="gone"/>
-
 
         <LinearLayout
             android:id="@+id/game_info"
@@ -64,8 +45,8 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:singleLine="true"
-                android:textStyle="bold"
                 android:textColor="@android:color/white"
+                android:textStyle="bold"
                 tools:text="The Legend of Zelda: The Wind Waker" />
 
             <TextView
@@ -74,9 +55,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:singleLine="true"
-                android:textStyle="bold"
                 android:text="@string/game_platform_wii"
-                android:textColor="@color/dolphin_purple"/>
+                android:textColor="@color/dolphin_purple"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/text_company"
@@ -90,6 +71,24 @@
 
 
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/text_game_country"
+            style="@android:style/TextAppearance.Material.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            tools:visibility="gone" />
+
+
+        <TextView
+            android:id="@+id/text_game_caption"
+            style="@android:style/TextAppearance.Material.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:textSize="1px"
+            android:visibility="gone"
+            tools:visibility="gone" />
 
     </RelativeLayout>
 

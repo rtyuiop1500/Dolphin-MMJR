@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude
+        domain="external"
+        path="./Cache/" />
+
+    <include
+        domain="external"
+        path="." />
+</full-backup-content>

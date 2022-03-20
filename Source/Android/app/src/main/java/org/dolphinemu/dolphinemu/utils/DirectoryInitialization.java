@@ -12,6 +12,7 @@ import android.os.Environment;
 import android.preference.PreferenceManager;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.dolphinemu.dolphinemu.NativeLibrary;
@@ -40,12 +41,12 @@ public final class DirectoryInitialization
   private static volatile boolean areDirectoriesAvailable = false;
   private static String userPath;
   private static AtomicBoolean isDolphinDirectoryInitializationRunning = new AtomicBoolean(false);
+  private static boolean isUsingLegacyUserDirectory = false;
 
   public enum DirectoryInitializationState
   {
     NOT_YET_INITIALIZED,
     DOLPHIN_DIRECTORIES_INITIALIZED,
-    EXTERNAL_STORAGE_PERMISSION_NEEDED,
     CANT_FIND_EXTERNAL_STORAGE
   }
 
@@ -63,34 +64,27 @@ public final class DirectoryInitialization
   {
     if (directoryState != DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED)
     {
-      if (PermissionsHandler.hasWriteAccess(context))
+      if (setDolphinUserDirectory(context))
       {
-        if (setDolphinUserDirectory(context))
+        initializeInternalStorage(context);
+        boolean wiimoteIniWritten = initializeExternalStorage(context);
+        NativeLibrary.Initialize();
+        NativeLibrary.ReportStartToAnalytics();
+
+        areDirectoriesAvailable = true;
+
+        if (wiimoteIniWritten)
         {
-          initializeInternalStorage(context);
-          boolean wiimoteIniWritten = initializeExternalStorage(context);
-          NativeLibrary.Initialize();
-          NativeLibrary.ReportStartToAnalytics();
-
-          areDirectoriesAvailable = true;
-
-          if (wiimoteIniWritten)
-          {
-            // This has to be done after calling NativeLibrary.Initialize(),
-            // as it relies on the config system
-            EmulationActivity.updateWiimoteNewIniPreferences(context);
-          }
-
-          directoryState = DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED;
+          // This has to be done after calling NativeLibrary.Initialize(),
+          // as it relies on the config system
+          EmulationActivity.updateWiimoteNewIniPreferences(context);
         }
-        else
-        {
-          directoryState = DirectoryInitializationState.CANT_FIND_EXTERNAL_STORAGE;
-        }
+
+        directoryState = DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED;
       }
       else
       {
-        directoryState = DirectoryInitializationState.EXTERNAL_STORAGE_PERMISSION_NEEDED;
+        directoryState = DirectoryInitializationState.CANT_FIND_EXTERNAL_STORAGE;
       }
     }
 
@@ -98,16 +92,32 @@ public final class DirectoryInitialization
     sendBroadcastState(directoryState, context);
   }
 
+  @Nullable
+  private static File getLegacyUserDirectoryPath()
+  {
+    File externalPath = Environment.getExternalStorageDirectory();
+    if (externalPath == null)
+      return null;
+
+    return new File(externalPath, "dolphin-mmjr");
+  }
+
   private static boolean setDolphinUserDirectory(Context context)
   {
     if (!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()))
       return false;
 
-    File externalPath = Environment.getExternalStorageDirectory();
-    if (externalPath == null)
+    isUsingLegacyUserDirectory =
+            preferLegacyUserDirectory(context) && PermissionsHandler.hasWriteAccess(context);
+
+    File path = isUsingLegacyUserDirectory ?
+            getLegacyUserDirectoryPath() : context.getExternalFilesDir(null);
+
+    if (path == null)
       return false;
 
-    userPath = externalPath.getAbsolutePath() + "/dolphin-mmjr";
+    userPath = path.getAbsolutePath();
+
     Log.debug("[DirectoryInitialization] User Dir: " + userPath);
     NativeLibrary.SetUserDirectory(userPath);
 
@@ -205,7 +215,8 @@ public final class DirectoryInitialization
   public static boolean shouldStart(Context context)
   {
     return !isDolphinDirectoryInitializationRunning.get() &&
-            getDolphinDirectoriesState(context) == DirectoryInitializationState.NOT_YET_INITIALIZED;
+            getDolphinDirectoriesState() == DirectoryInitializationState.NOT_YET_INITIALIZED &&
+            !isWaitingForWriteAccess(context);
   }
 
   public static boolean areDolphinDirectoriesReady()
@@ -213,17 +224,9 @@ public final class DirectoryInitialization
     return directoryState == DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED;
   }
 
-  public static DirectoryInitializationState getDolphinDirectoriesState(Context context)
+  public static DirectoryInitializationState getDolphinDirectoriesState()
   {
-    if (directoryState == DirectoryInitializationState.NOT_YET_INITIALIZED &&
-            !PermissionsHandler.hasWriteAccess(context))
-    {
-      return DirectoryInitializationState.EXTERNAL_STORAGE_PERMISSION_NEEDED;
-    }
-    else
-    {
-      return directoryState;
-    }
+    return directoryState;
   }
 
   public static String getUserDirectory()
@@ -336,6 +339,55 @@ public final class DirectoryInitialization
         Log.error("[DirectoryInitialization] Failed to create folder " + wiiPath.getAbsolutePath());
       }
     }
+  }
+
+  private static boolean isExternalFilesDirEmpty(Context context)
+  {
+    File dir = context.getExternalFilesDir(null);
+    if (dir == null)
+      return false;  // External storage not available
+
+    File[] contents = dir.listFiles();
+    return contents == null || contents.length == 0;
+  }
+
+  private static boolean legacyUserDirectoryExists()
+  {
+    try
+    {
+      return getLegacyUserDirectoryPath().exists();
+    }
+    catch (SecurityException e)
+    {
+      // Most likely we don't have permission to read external storage.
+      // Return true so that external storage permissions will be requested.
+      //
+      // Strangely, we don't seem to trigger this case in practice, even with no permissions...
+      // But this only makes things more convenient for users, so no harm done.
+
+      return true;
+    }
+  }
+
+  private static boolean preferLegacyUserDirectory(Context context)
+  {
+    return PermissionsHandler.isExternalStorageLegacy() &&
+            !PermissionsHandler.isWritePermissionDenied() &&
+            isExternalFilesDirEmpty(context) && legacyUserDirectoryExists();
+  }
+
+  public static boolean isUsingLegacyUserDirectory()
+  {
+    return isUsingLegacyUserDirectory;
+  }
+
+  public static boolean isWaitingForWriteAccess(Context context)
+  {
+    // This first check is only for performance, not correctness
+    if (getDolphinDirectoriesState() != DirectoryInitializationState.NOT_YET_INITIALIZED)
+      return false;
+
+    return preferLegacyUserDirectory(context) && !PermissionsHandler.hasWriteAccess(context);
   }
 
   private static native void CreateUserDirectories();
