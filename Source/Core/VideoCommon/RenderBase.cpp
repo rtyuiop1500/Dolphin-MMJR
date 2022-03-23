@@ -560,13 +560,13 @@ void Renderer::DrawDebugText()
       if (pstats.Speed < 95)
       {
         ImGui::TextColored(ImVec4(0.992f, 0.050f, 0.058f, 1.0f),
-                           "|MMJR| FPS: %.0f | VPS:%.0f | Speed:%.0f%% |",
+                           "|MMJR| FPS: %.0f | VPS:%.0f | Speed:%.0f%%",
                            pstats.FPS, pstats.VPS, pstats.Speed); // red
       }
       else
       {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 1.0f, 1.0f),
-                           "|MMJR| FPS: %.0f | VPS:%.0f | Speed:%.0f%% |",
+                           "|MMJR| FPS: %.0f | VPS:%.0f | Speed:%.0f%%",
                            pstats.FPS, pstats.VPS, pstats.Speed); // purple
       }
     }
