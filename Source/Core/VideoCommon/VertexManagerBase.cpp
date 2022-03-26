@@ -567,6 +567,8 @@ void VertexManagerBase::UpdatePipelineConfig()
   if (vertex_format != m_current_pipeline_config.vertex_format)
   {
     m_current_pipeline_config.vertex_format = vertex_format;
+    m_current_uber_pipeline_config.vertex_format =
+        VertexLoaderManager::GetUberVertexFormat(vertex_format->GetVertexDeclaration());
     m_pipeline_config_changed = true;
   }
 
@@ -574,6 +576,7 @@ void VertexManagerBase::UpdatePipelineConfig()
   if (vs_uid != m_current_pipeline_config.vs_uid)
   {
     m_current_pipeline_config.vs_uid = vs_uid;
+    m_current_uber_pipeline_config.vs_uid = UberShader::GetVertexShaderUid();
     m_pipeline_config_changed = true;
   }
 
@@ -581,6 +584,7 @@ void VertexManagerBase::UpdatePipelineConfig()
   if (ps_uid != m_current_pipeline_config.ps_uid)
   {
     m_current_pipeline_config.ps_uid = ps_uid;
+    m_current_uber_pipeline_config.ps_uid = UberShader::GetPixelShaderUid();
     m_pipeline_config_changed = true;
   }
 
@@ -588,6 +592,7 @@ void VertexManagerBase::UpdatePipelineConfig()
   if (gs_uid != m_current_pipeline_config.gs_uid)
   {
     m_current_pipeline_config.gs_uid = gs_uid;
+    m_current_uber_pipeline_config.gs_uid = gs_uid;
     m_pipeline_config_changed = true;
   }
 
@@ -600,6 +605,7 @@ void VertexManagerBase::UpdatePipelineConfig()
     if (new_rs != m_current_pipeline_config.rasterization_state)
     {
       m_current_pipeline_config.rasterization_state = new_rs;
+      m_current_uber_pipeline_config.rasterization_state = new_rs;
       m_pipeline_config_changed = true;
     }
   }
@@ -613,6 +619,7 @@ void VertexManagerBase::UpdatePipelineConfig()
     if (new_ds != m_current_pipeline_config.depth_state)
     {
       m_current_pipeline_config.depth_state = new_ds;
+      m_current_uber_pipeline_config.depth_state = new_ds;
       m_pipeline_config_changed = true;
     }
   }
@@ -626,6 +633,7 @@ void VertexManagerBase::UpdatePipelineConfig()
     if (new_bs != m_current_pipeline_config.blending_state)
     {
       m_current_pipeline_config.blending_state = new_bs;
+      m_current_uber_pipeline_config.blending_state = new_bs;
       m_pipeline_config_changed = true;
     }
   }
@@ -643,11 +651,20 @@ void VertexManagerBase::UpdatePipelineObject()
   {
   case ShaderCompilationMode::Synchronous:
   {
-    // Block and compile the specialized shader.
+    // Ubershaders disabled? Block and compile the specialized shader.
     m_current_pipeline_object = g_shader_cache->GetPipelineForUid(m_current_pipeline_config);
   }
   break;
 
+  case ShaderCompilationMode::SynchronousUberShaders:
+  {
+    // Exclusive ubershader mode, always use ubershaders.
+    m_current_pipeline_object =
+        g_shader_cache->GetUberPipelineForUid(m_current_uber_pipeline_config);
+  }
+  break;
+
+  case ShaderCompilationMode::AsynchronousUberShaders:
   case ShaderCompilationMode::AsynchronousSkipRendering:
   {
     // Can we background compile shaders? If so, get the pipeline asynchronously.
@@ -659,9 +676,18 @@ void VertexManagerBase::UpdatePipelineObject()
       return;
     }
 
-    // Ensure we try again next draw. Otherwise, if no registers change between frames, the
-    // object will never be drawn, even when the shader is ready.
-    m_pipeline_config_changed = true;
+    if (g_ActiveConfig.iShaderCompilationMode == ShaderCompilationMode::AsynchronousUberShaders)
+    {
+      // Specialized shaders not ready, use the ubershaders.
+      m_current_pipeline_object =
+          g_shader_cache->GetUberPipelineForUid(m_current_uber_pipeline_config);
+    }
+    else
+    {
+      // Ensure we try again next draw. Otherwise, if no registers change between frames, the
+      // object will never be drawn, even when the shader is ready.
+      m_pipeline_config_changed = true;
+    }
   }
   break;
   }

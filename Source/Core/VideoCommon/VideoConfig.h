@@ -34,6 +34,8 @@ enum class AspectMode : int
 enum class ShaderCompilationMode : int
 {
   Synchronous,
+  SynchronousUberShaders,
+  AsynchronousUberShaders,
   AsynchronousSkipRendering
 };
 
@@ -246,6 +248,7 @@ struct VideoConfig final
       return true;
     return bHiresTextures;
   }
+  bool UsingUberShaders() const;
   u32 GetShaderCompilerThreads() const;
   u32 GetShaderPrecompilerThreads() const;
 };

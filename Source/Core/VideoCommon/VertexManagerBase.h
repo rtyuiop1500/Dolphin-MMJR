@@ -179,6 +179,7 @@ protected:
   Slope m_zslope = {};
 
   VideoCommon::GXPipelineUid m_current_pipeline_config;
+  VideoCommon::GXUberPipelineUid m_current_uber_pipeline_config;
   const AbstractPipeline* m_current_pipeline_object = nullptr;
   PrimitiveType m_current_primitive_type = PrimitiveType::Points;
   bool m_pipeline_config_changed = true;

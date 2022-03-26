@@ -91,6 +91,12 @@ add_library(videocommon
   TextureInfo.h
   TMEM.cpp
   TMEM.h
+  UberShaderCommon.cpp
+  UberShaderCommon.h
+  UberShaderPixel.cpp
+  UberShaderPixel.h
+  UberShaderVertex.cpp
+  UberShaderVertex.h
   VertexLoader.cpp
   VertexLoader.h
   VertexLoaderBase.cpp

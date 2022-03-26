@@ -31,7 +31,6 @@
 alignas(16) static std::array<float, 16> g_fProjectionMatrix;
 
 // track changes
-static u32 s_components;
 static std::array<bool, 2> bTexMatricesChanged;
 static bool bPosNormalMatrixChanged;
 static bool bProjectionChanged;
@@ -101,7 +100,6 @@ static void ViewportCorrectionMatrix(Common::Matrix44& result)
 void VertexShaderManager::Init()
 {
   // Initialize state tracking variables
-  s_components = 0;
   nTransformMatricesChanged.fill(-1);
   nNormalMatricesChanged.fill(-1);
   nPostTransformMatricesChanged.fill(-1);
@@ -453,7 +451,11 @@ void VertexShaderManager::SetConstants()
   if (bTexMtxInfoChanged)
   {
     bTexMtxInfoChanged = false;
-    //constants.xfmem_dualTexInfo = xfmem.dualTexTrans.enabled;
+    constants.xfmem_dualTexInfo = xfmem.dualTexTrans.enabled;
+    for (size_t i = 0; i < std::size(xfmem.texMtxInfo); i++)
+      constants.xfmem_pack1[i][0] = xfmem.texMtxInfo[i].hex;
+    for (size_t i = 0; i < std::size(xfmem.postMtxInfo); i++)
+      constants.xfmem_pack1[i][1] = xfmem.postMtxInfo[i].hex;
 
     dirty = true;
   }
@@ -462,7 +464,12 @@ void VertexShaderManager::SetConstants()
   {
     bLightingConfigChanged = false;
 
-    //constants.xfmem_numColorChans = xfmem.numChan.numColorChans;
+    for (size_t i = 0; i < 2; i++)
+    {
+      constants.xfmem_pack1[i][2] = xfmem.color[i].hex;
+      constants.xfmem_pack1[i][3] = xfmem.alpha[i].hex;
+    }
+    constants.xfmem_numColorChans = xfmem.numChan.numColorChans;
     dirty = true;
   }
 }
@@ -622,9 +629,9 @@ void VertexShaderManager::SetMaterialColorChanged(int index)
 
 void VertexShaderManager::SetVertexFormat(u32 components)
 {
-  if (components != s_components)
+  if (components != constants.components)
   {
-    s_components = components;
+    constants.components = components;
     dirty = true;
   }
 }

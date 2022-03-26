@@ -46,7 +46,7 @@ struct PixelShaderConstants
   std::array<uint4, 16> pack1;  // .xy - combiners, .z - tevind, .w - iref
   std::array<uint4, 8> pack2;   // .x - tevorder, .y - tevksel, .z/.w - SamplerState tm0/tm1
   std::array<int4, 32> konst;   // .rgba
-  // used when using shader_framebuffer_fetch blending
+  // The following are used in ubershaders when using shader_framebuffer_fetch blending
   u32 blend_enable;
   SrcBlendFactor blend_src_factor;
   SrcBlendFactor blend_src_factor_alpha;

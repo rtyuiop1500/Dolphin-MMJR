@@ -160,6 +160,12 @@ void VideoConfig::VerifyValidity()
     iMultisamples = 1;
 }
 
+bool VideoConfig::UsingUberShaders() const
+{
+  return iShaderCompilationMode == ShaderCompilationMode::SynchronousUberShaders ||
+         iShaderCompilationMode == ShaderCompilationMode::AsynchronousUberShaders;
+}
+
 static u32 GetNumAutoShaderCompilerThreads()
 {
   // Automatic number. We use clamp(cpus - 3, 1, 4).

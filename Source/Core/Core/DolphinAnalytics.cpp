@@ -330,8 +330,12 @@ static const char* GetShaderCompilationMode(const VideoConfig& video_config)
 {
   switch (video_config.iShaderCompilationMode)
   {
+  case ShaderCompilationMode::AsynchronousUberShaders:
+    return "async-ubershaders";
   case ShaderCompilationMode::AsynchronousSkipRendering:
     return "async-skip-rendering";
+  case ShaderCompilationMode::SynchronousUberShaders:
+    return "sync-ubershaders";
   case ShaderCompilationMode::Synchronous:
   default:
     return "sync";

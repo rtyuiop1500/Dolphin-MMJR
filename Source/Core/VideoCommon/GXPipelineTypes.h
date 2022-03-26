@@ -7,6 +7,8 @@
 #include "VideoCommon/NativeVertexFormat.h"
 #include "VideoCommon/PixelShaderGen.h"
 #include "VideoCommon/RenderState.h"
+#include "VideoCommon/UberShaderPixel.h"
+#include "VideoCommon/UberShaderVertex.h"
 #include "VideoCommon/VertexShaderGen.h"
 
 class NativeVertexFormat;
@@ -62,6 +64,45 @@ struct GXPipelineUid
   bool operator!=(const GXPipelineUid& rhs) const { return !operator==(rhs); }
 };
 
+struct GXUberPipelineUid
+{
+  const NativeVertexFormat* vertex_format;
+  UberShader::VertexShaderUid vs_uid;
+  GeometryShaderUid gs_uid;
+  UberShader::PixelShaderUid ps_uid;
+  RasterizationState rasterization_state;
+  DepthState depth_state;
+  BlendingState blending_state;
+
+  GXUberPipelineUid() { std::memset(static_cast<void*>(this), 0, sizeof(*this)); }
+#ifdef _MSC_VER
+#pragma warning(push)
+// Disable warning for uninitialized member variables
+#pragma warning(disable : 26495)
+#endif
+  GXUberPipelineUid(const GXUberPipelineUid& rhs)
+  {
+    std::memcpy(static_cast<void*>(this), &rhs, sizeof(*this));
+  }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+  GXUberPipelineUid& operator=(const GXUberPipelineUid& rhs)
+  {
+    std::memcpy(static_cast<void*>(this), &rhs, sizeof(*this));
+    return *this;
+  }
+  bool operator<(const GXUberPipelineUid& rhs) const
+  {
+    return std::memcmp(this, &rhs, sizeof(*this)) < 0;
+  }
+  bool operator==(const GXUberPipelineUid& rhs) const
+  {
+    return std::memcmp(this, &rhs, sizeof(*this)) == 0;
+  }
+  bool operator!=(const GXUberPipelineUid& rhs) const { return !operator==(rhs); }
+};
+
 // Disk cache of pipeline UIDs. We can't use the whole UID as a type as it contains pointers.
 // This structure is safe to save to disk, and should be compiler/platform independent.
 #pragma pack(push, 1)
@@ -71,6 +112,16 @@ struct SerializedGXPipelineUid
   VertexShaderUid vs_uid;
   GeometryShaderUid gs_uid;
   PixelShaderUid ps_uid;
+  u32 rasterization_state_bits = 0;
+  u32 depth_state_bits = 0;
+  u32 blending_state_bits = 0;
+};
+struct SerializedGXUberPipelineUid
+{
+  PortableVertexDeclaration vertex_decl{};
+  UberShader::VertexShaderUid vs_uid;
+  GeometryShaderUid gs_uid;
+  UberShader::PixelShaderUid ps_uid;
   u32 rasterization_state_bits = 0;
   u32 depth_state_bits = 0;
   u32 blending_state_bits = 0;

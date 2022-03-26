@@ -298,7 +298,7 @@ PixelShaderUid GetPixelShaderUid()
   }
   else
   {
-    uid_data->forced_early_z = 1;
+    uid_data->forced_early_z = true;
   }
 
   // NOTE: Fragment may not be discarded if alpha test always fails and early depth test is enabled
@@ -359,7 +359,7 @@ PixelShaderUid GetPixelShaderUid()
     }
     else
     {
-      // alpha pass
+      // before alpha pass
       uid_data->useDstAlpha = false;
     }
   }
@@ -389,10 +389,6 @@ void ClearUnusedPixelShaderUidBits(APIType api_type, const ShaderHostConfig& hos
     uid_data->logic_mode = 0;
   }
 
-  // If bounding box is enabled when a UID cache is created, then later disabled, we shouldn't
-  // emit the bounding box portion of the shader.
-  uid_data->bounding_box &= host_config.bounding_box & host_config.backend_bbox;
-
   if (!host_config.backend_shader_framebuffer_fetch)
   {
     if (uid_data->logic_mode == u32(LogicOp::Clear) ||
@@ -412,6 +408,10 @@ void ClearUnusedPixelShaderUidBits(APIType api_type, const ShaderHostConfig& hos
   {
     uid_data->forced_early_z = 0;
   }
+
+  // If bounding box is enabled when a UID cache is created, then later disabled, we shouldn't
+  // emit the bounding box portion of the shader.
+  uid_data->bounding_box &= host_config.bounding_box & host_config.backend_bbox;
 }
 
 void WritePixelShaderCommonHeader(ShaderCode& out, APIType api_type,
@@ -467,7 +467,34 @@ void WritePixelShaderCommonHeader(ShaderCode& out, APIType api_type,
             "\tfloat4 " I_FOGRANGE "[3];\n"
             "\tfloat4 " I_ZSLOPE ";\n"
             "\tfloat2 " I_EFBSCALE ";\n"
+            "\tuint  bpmem_genmode;\n"
+            "\tuint  bpmem_alphaTest;\n"
+            "\tuint  bpmem_fogParam3;\n"
+            "\tuint  bpmem_fogRangeBase;\n"
+            "\tuint  bpmem_dstalpha;\n"
+            "\tuint  bpmem_ztex_op;\n"
+            "\tbool  bpmem_late_ztest;\n"
+            "\tbool  bpmem_rgba6_format;\n"
+            "\tbool  bpmem_dither;\n"
+            "\tbool  bpmem_bounding_box;\n"
+            "\tuint4 bpmem_pack1[16];\n"  // .xy - combiners, .z - tevind
+            "\tuint4 bpmem_pack2[8];\n"   // .x - tevorder, .y - tevksel, .zw - SamplerState tm0/tm1
+            "\tint4  konstLookup[32];\n"
+            "\tbool  blend_enable;\n"
+            "\tuint  blend_src_factor;\n"
+            "\tuint  blend_src_factor_alpha;\n"
+            "\tuint  blend_dst_factor;\n"
+            "\tuint  blend_dst_factor_alpha;\n"
+            "\tbool  blend_subtract;\n"
+            "\tbool  blend_subtract_alpha;\n"
             "}};\n\n");
+  out.Write("#define bpmem_combiners(i) (bpmem_pack1[(i)].xy)\n"
+            "#define bpmem_tevind(i) (bpmem_pack1[(i)].z)\n"
+            "#define bpmem_iref(i) (bpmem_pack1[(i)].w)\n"
+            "#define bpmem_tevorder(i) (bpmem_pack2[(i)].x)\n"
+            "#define bpmem_tevksel(i) (bpmem_pack2[(i)].y)\n"
+            "#define samp_texmode0(i) (bpmem_pack2[(i)].z)\n"
+            "#define samp_texmode1(i) (bpmem_pack2[(i)].w)\n\n");
 
   if (host_config.per_pixel_lighting)
   {

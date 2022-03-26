@@ -946,7 +946,7 @@ bool Renderer::InitializeImGui()
   ImGui::GetIO().FontGlobalScale = g_ActiveConfig.fFontScale;
   ImGui::GetStyle().ScaleAllSizes(g_ActiveConfig.fFontScale);
   ImGui::GetStyle().WindowRounding = 7.0f;
-
+  ImGui::GetStyle().WindowBorderSize = 0.0f;
   PortableVertexDeclaration vdecl = {};
   vdecl.position = {VAR_FLOAT, 2, offsetof(ImDrawVert, pos), true, false};
   vdecl.texcoords[0] = {VAR_FLOAT, 2, offsetof(ImDrawVert, uv), true, false};

@@ -27,6 +27,8 @@
 #include "VideoCommon/TextureCacheBase.h"
 #include "VideoCommon/TextureConversionShader.h"
 #include "VideoCommon/TextureConverterShaderGen.h"
+#include "VideoCommon/UberShaderPixel.h"
+#include "VideoCommon/UberShaderVertex.h"
 #include "VideoCommon/VertexShaderGen.h"
 
 class NativeVertexFormat;
@@ -61,6 +63,7 @@ public:
 
   // Accesses ShaderGen shader caches
   const AbstractPipeline* GetPipelineForUid(const GXPipelineUid& uid);
+  const AbstractPipeline* GetUberPipelineForUid(const GXUberPipelineUid& uid);
 
   // Accesses ShaderGen shader caches asynchronously.
   // The optional will be empty if this pipeline is now background compiling.
@@ -109,15 +112,24 @@ private:
   void LoadPipelineUIDCache();
   void ClosePipelineUIDCache();
   void CompileMissingPipelines();
+  void QueueUberShaderPipelines();
   bool CompileSharedPipelines();
 
   // GX shader compiler methods
   std::unique_ptr<AbstractShader> CompileVertexShader(const VertexShaderUid& uid) const;
+  std::unique_ptr<AbstractShader>
+  CompileVertexUberShader(const UberShader::VertexShaderUid& uid) const;
   std::unique_ptr<AbstractShader> CompilePixelShader(const PixelShaderUid& uid) const;
+  std::unique_ptr<AbstractShader>
+  CompilePixelUberShader(const UberShader::PixelShaderUid& uid) const;
   const AbstractShader* InsertVertexShader(const VertexShaderUid& uid,
                                            std::unique_ptr<AbstractShader> shader);
+  const AbstractShader* InsertVertexUberShader(const UberShader::VertexShaderUid& uid,
+                                               std::unique_ptr<AbstractShader> shader);
   const AbstractShader* InsertPixelShader(const PixelShaderUid& uid,
                                           std::unique_ptr<AbstractShader> shader);
+  const AbstractShader* InsertPixelUberShader(const UberShader::PixelShaderUid& uid,
+                                              std::unique_ptr<AbstractShader> shader);
   const AbstractShader* CreateGeometryShader(const GeometryShaderUid& uid);
   bool NeedsGeometryShader(const GeometryShaderUid& uid) const;
 
@@ -128,15 +140,21 @@ private:
                       const RasterizationState& rasterization_state, const DepthState& depth_state,
                       const BlendingState& blending_state);
   std::optional<AbstractPipelineConfig> GetGXPipelineConfig(const GXPipelineUid& uid);
+  std::optional<AbstractPipelineConfig> GetGXPipelineConfig(const GXUberPipelineUid& uid);
   const AbstractPipeline* InsertGXPipeline(const GXPipelineUid& config,
                                            std::unique_ptr<AbstractPipeline> pipeline);
+  const AbstractPipeline* InsertGXUberPipeline(const GXUberPipelineUid& config,
+                                               std::unique_ptr<AbstractPipeline> pipeline);
   void AddSerializedGXPipelineUID(const SerializedGXPipelineUid& uid);
   void AppendGXPipelineUID(const GXPipelineUid& config);
 
   // ASync Compiler Methods
   void QueueVertexShaderCompile(const VertexShaderUid& uid, u32 priority);
+  void QueueVertexUberShaderCompile(const UberShader::VertexShaderUid& uid, u32 priority);
   void QueuePixelShaderCompile(const PixelShaderUid& uid, u32 priority);
+  void QueuePixelUberShaderCompile(const UberShader::PixelShaderUid& uid, u32 priority);
   void QueuePipelineCompile(const GXPipelineUid& uid, u32 priority);
+  void QueueUberPipelineCompile(const GXUberPipelineUid& uid, u32 priority);
 
   // Populating various caches.
   template <ShaderStage stage, typename K, typename T>
@@ -151,10 +169,12 @@ private:
 
   // Priorities for compiling. The lower the value, the sooner the pipeline is compiled.
   // The shader cache is compiled last, as it is the least likely to be required. On demand
-  // shaders are always compiled.
+  // shaders are always compiled before pending ubershaders, as we want to use the ubershader
+  // for as few frames as possible, otherwise we risk framerate drops.
   enum : u32
   {
     COMPILE_PRIORITY_ONDEMAND_PIPELINE = 100,
+    COMPILE_PRIORITY_UBERSHADER_PIPELINE = 200,
     COMPILE_PRIORITY_SHADERCACHE_PIPELINE = 300
   };
 
@@ -185,11 +205,16 @@ private:
   ShaderModuleCache<VertexShaderUid> m_vs_cache;
   ShaderModuleCache<GeometryShaderUid> m_gs_cache;
   ShaderModuleCache<PixelShaderUid> m_ps_cache;
+  ShaderModuleCache<UberShader::VertexShaderUid> m_uber_vs_cache;
+  ShaderModuleCache<UberShader::PixelShaderUid> m_uber_ps_cache;
 
   // GX Pipeline Caches - .first - pipeline, .second - pending
   std::map<GXPipelineUid, std::pair<std::unique_ptr<AbstractPipeline>, bool>> m_gx_pipeline_cache;
+  std::map<GXUberPipelineUid, std::pair<std::unique_ptr<AbstractPipeline>, bool>>
+      m_gx_uber_pipeline_cache;
   File::IOFile m_gx_pipeline_uid_cache_file;
   LinearDiskCache<SerializedGXPipelineUid, u8> m_gx_pipeline_disk_cache;
+  LinearDiskCache<SerializedGXUberPipelineUid, u8> m_gx_uber_pipeline_disk_cache;
 
   // EFB copy to VRAM/RAM pipelines
   std::map<TextureConversionShaderGen::TCShaderUid, std::unique_ptr<AbstractPipeline>>
