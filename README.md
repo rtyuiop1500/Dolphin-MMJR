@@ -8,7 +8,7 @@ If for some reason you prefer the old builds over the new one; you can get it on
 
 This fork wouldn't be possible without the crazy amount of work that developers much more skilled than us put into Dolphin.
 
-Join the MMJR community at our [Discord](https://discord.gg/SEkWJSFk).
+Join the MMJR community at our [Discord](https://discord.gg/NZTQRpy5B3).
 
 ## Dolphin - A GameCube and Wii Emulator
 
